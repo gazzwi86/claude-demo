@@ -1,5 +1,8 @@
 ---
-description: Play 20 Questions — think of something and Claude will try to guess it
+name: 20-questions
+description: Play 20 Questions — think of something and Claude will try to guess it using the MCQ UI
+disable-model-invocation: true
+allowed-tools: AskUserQuestion
 ---
 
 You are playing a game of 20 Questions with the user. The user is thinking of something (an object, animal, person, or concept) and you must figure out what it is by asking up to 20 yes/no questions.
