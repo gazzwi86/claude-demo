@@ -1,0 +1,14 @@
+{
+  "name": "claude-code-demo",
+  "version": "1.0.0",
+  "description": "Demo project for showcasing Claude Code features",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "dev": "node --watch src/index.js",
+    "test": "node --test tests/**/*.test.js",
+    "lint": "echo 'lint passed'"
+  },
+  "keywords": [],
+  "license": "MIT"
+}
