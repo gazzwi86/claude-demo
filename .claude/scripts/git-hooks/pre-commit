@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Pre-commit: ask Claude to /simplify the staged changes before commit.
+# Skip with `git commit --no-verify` when needed.
+
+if ! command -v claude >/dev/null 2>&1; then
+  echo "pre-commit: claude CLI not found, skipping /simplify" >&2
+  exit 0
+fi
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(js|mjs|cjs)$' || true)
+if [ -z "$STAGED" ]; then
+  exit 0
+fi
+
+echo "pre-commit: running /simplify on staged JS files..." >&2
+echo "$STAGED" | sed 's/^/  - /' >&2
+
+PROMPT="/simplify Focus on these staged files only: $(echo "$STAGED" | tr '\n' ' ')"
+claude -p "$PROMPT" --output-format text || {
+  echo "pre-commit: /simplify exited non-zero (continuing commit)" >&2
+}
+
+# Refresh the anatomy/wiki for any tracked staged files. /anatomy refresh is
+# an incremental run that updates only the touched area pages.
+TRACKED=$(echo "$STAGED" | grep -E '^(src|tests)/' || true)
+if [ -n "$TRACKED" ]; then
+  echo "pre-commit: refreshing anatomy/wiki for tracked files..." >&2
+  REFRESH="/anatomy refresh $(echo "$TRACKED" | tr '\n' ' ')"
+  claude -p "$REFRESH" --output-format text || {
+    echo "pre-commit: /anatomy refresh failed (continuing commit)" >&2
+  }
+  # Stage the wiki updates so they land in this commit.
+  git add ANATOMY.md docs/wiki/ 2>/dev/null || true
+fi

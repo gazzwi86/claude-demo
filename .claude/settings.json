@@ -1,30 +1,46 @@
 {
-  "permissions": {
-    "allow": [
-      "Bash(npm test)",
-      "Bash(npm run lint)",
-      "Bash(npm run dev)",
-      "Bash(node *)",
-      "Read",
-      "Write",
-      "Edit"
-    ],
-    "deny": [
-      "Bash(rm -rf *)",
-      "Bash(git push --force*)",
-      "Bash(curl*)"
-    ]
+  "plansDirectory": "./.claude/plans",
+  "attribution": {
+    "commit": "Co-Authored-By: Claude <noreply@anthropic.com>",
+    "pr": "Generated with [Claude Code](https://claude.ai/code)"
   },
-  "ignorePaths": [
-    ".env",
-    ".env.*",
-    "*.pem",
-    "*.key"
-  ],
+  "statusLine": {
+    "type": "command",
+    "command": "bash ${CLAUDE_PROJECT_DIR}/.claude/scripts/statusline.sh",
+    "padding": 0
+  },
   "env": {
     "NODE_ENV": "development",
     "PORT": "3000"
   },
+  "permissions": {
+    "allow": [
+      "Bash(docker compose *)",
+      "Bash(gh api *)",
+      "Bash(npm test)",
+      "Bash(npm run lint)",
+      "Bash(npm run dev)",
+      "Bash(node *)",
+      "WebSearch",
+      "Read",
+      "Write",
+      "Edit"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(rm *)",
+      "Bash(chmod *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(git push --force*)",
+      "Bash(curl*)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(./*.pem)",
+      "Read(./*.key)"
+    ]
+  },  
   "hooks": {
     "PreToolUse": [
       {
@@ -32,29 +48,117 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node scripts/check-no-secrets.js $CLAUDE_FILE_PATH"
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py pre-tool-use check-no-secrets",
+            "timeout": 5000
+          }
+        ]
+      },
+      {
+        "matcher": "Glob|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py pre-tool-use graphify-hint"
           }
         ]
       }
     ],
     "PostToolUse": [
       {
-        "matcher": "Write",
+        "matcher": "Edit|Write",
         "hooks": [
           {
             "type": "command",
-            "command": "echo '✔ File written — remember to run tests'"
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py post-tool-use check-circular-deps",
+            "timeout": 10000,
+            "statusMessage": "Checking for circular requires"
+          },
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py post-tool-use mark-anatomy-stale",
+            "timeout": 5000,
+            "async": true
+          },
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py post-tool-use claude-review",
+            "timeout": 45000,
+            "async": true,
+            "statusMessage": "Running claude -p security review"
+          },
+          {
+            "type": "prompt",
+            "prompt": "You are a security linter. The hook input JSON below describes a file Claude just wrote. If tool_input.file_path is not under src/ or .claude/scripts/ or does not end in .js, return {\"decision\":\"approve\"} immediately. Otherwise inspect tool_input.content (Write) or tool_input.new_string (Edit) and decide if it (a) hardcodes a secret/API key/token, or (b) calls eval() or new Function(). Return JSON ONLY, in the form {\"decision\":\"block\",\"reason\":\"...\"} on a violation, or {\"decision\":\"approve\"} otherwise.\n\nHook input:\n$ARGUMENTS"
           }
         ]
       }
     ],
     "Notification": [
       {
-        "matcher": "",
         "hooks": [
           {
             "type": "command",
-            "command": "echo 'Claude says:' \"$CLAUDE_NOTIFICATION\""
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py notification"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py user-prompt-submit"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py stop"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py subagent-stop"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py pre-compact"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py session-start"
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py session-end"
           }
         ]
       }
@@ -64,7 +168,10 @@
     "context7": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@anthropic-ai/context7-mcp@latest"]
+      "args": [
+        "-y",
+        "@anthropic-ai/context7-mcp@latest"
+      ]
     }
   }
 }
