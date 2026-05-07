@@ -80,4 +80,20 @@
 
 ---
 
-<!-- stale: src/utils/validate.js --> <!-- at: 2026-05-07T03:46:00.778621+00:00 -->
+## src/utils/validate.js
+
+**Description:** Small input-validation helpers used at route boundaries. Provides email regex matching, a coarse string sanitizer that strips HTML-significant characters, and a positive-integer URL param parser.
+
+### Functions
+
+- **`isValidEmail(email)`** — boolean test against a basic local@domain.tld regex.
+- **`sanitizeInput(str)`** — strips `<>"'&` from strings; passes non-strings through unchanged.
+- **`parseIntParam(value, label)`** — returns a positive integer or throws `ValidationError(`invalid ${label}`)`.
+
+### Exports
+
+`module.exports = { isValidEmail, sanitizeInput, parseIntParam }`
+
+### Depends on
+
+- `../errors` (ValidationError)

@@ -2,7 +2,7 @@ const { AuthError } = require("../errors");
 const sessionsService = require("../services/auth");
 
 function extractBearer(req) {
-  const header = req.headers["authorization"] || req.headers["Authorization"];
+  const header = req.headers["authorization"];
   if (!header || typeof header !== "string") return null;
   const [scheme, token] = header.split(/\s+/);
   if (!scheme || scheme.toLowerCase() !== "bearer" || !token) return null;

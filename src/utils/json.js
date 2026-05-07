@@ -9,8 +9,8 @@ function readJsonBody(req) {
     req.on("data", (chunk) => {
       size += chunk.length;
       if (size > MAX_BODY_BYTES) {
-        reject(new ValidationError("request body too large"));
         req.destroy();
+        reject(new ValidationError("request body too large"));
         return;
       }
       chunks.push(chunk);

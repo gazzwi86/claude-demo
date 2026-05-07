@@ -1,6 +1,5 @@
 const { readJsonBody, sendJson } = require("../utils/json");
-const { sanitizeInput } = require("../utils/validate");
-const { ValidationError } = require("../errors");
+const { parseIntParam } = require("../utils/validate");
 const { requireSession } = require("../middleware/auth");
 const tagsService = require("../services/tags");
 
@@ -11,14 +10,9 @@ async function listTags(req, res) {
 
 async function addTagToPost(req, res, ctx) {
   requireSession(req);
-  const id = Number(ctx.params.id);
-  if (!Number.isInteger(id) || id <= 0) throw new ValidationError("invalid post id");
+  const id = parseIntParam(ctx.params.id, "post id");
   const body = await readJsonBody(req);
-  const name = sanitizeInput(body.name);
-  if (typeof name !== "string" || name.trim().length < 2) {
-    throw new ValidationError("tag name must be at least 2 characters");
-  }
-  const result = tagsService.addTagToPost(id, name);
+  const result = tagsService.addTagToPost(id, body.name);
   sendJson(res, result.created ? 201 : 200, { tag: result.tag, postId: id });
 }
 

@@ -1,6 +1,6 @@
 # Repository Anatomy
 
-_Last incremental refresh: 2026-05-07T13:50:00Z_
+_Last incremental refresh: 2026-05-07T14:05:00Z_
 
 ## File tree
 
@@ -72,12 +72,12 @@ tests/
 - [Models](docs/wiki/models.md) — 4 files documented (comment, post, session, tag)
 - [Routes](docs/wiki/routes.md) — 6 files documented (auth, comments, feed, posts, search, tags)
 - [Services](docs/wiki/services.md) — 6 files
-- [Utils](docs/wiki/utils.md) — 4 files documented (hash, json, pagination, slug)
+- [Utils](docs/wiki/utils.md) — 5 files documented (hash, json, pagination, slug, validate)
 - [Tests](docs/wiki/tests.md) — 5 files documented (auth, cache, posts, rate-limit, utils)
 
 ## Stale entries
 
-- `src/utils/validate.js` — stale marker preserved in `docs/wiki/utils.md` (not in this refresh batch)
+_None._
 
 ## Undocumented files
 

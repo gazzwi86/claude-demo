@@ -1,18 +1,11 @@
 const { readJsonBody, sendJson } = require("../utils/json");
-const { sanitizeInput } = require("../utils/validate");
 const { ValidationError } = require("../errors");
 const authService = require("../services/auth");
 const { requireSession, extractBearer } = require("../middleware/auth");
 
 async function register(req, res) {
   const body = await readJsonBody(req);
-  const safe = {
-    name: sanitizeInput(body.name),
-    email: typeof body.email === "string" ? body.email.trim() : body.email,
-    password: body.password,
-    role: body.role,
-  };
-  const user = authService.register(safe);
+  const user = authService.register(body);
   sendJson(res, 201, { user });
 }
 
