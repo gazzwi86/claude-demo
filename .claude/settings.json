@@ -88,7 +88,7 @@
           },
           {
             "type": "prompt",
-            "prompt": "You are a security linter. The hook input JSON below describes a file Claude just wrote. If tool_input.file_path is not under src/ or .claude/scripts/ or does not end in .js, return {\"decision\":\"approve\"} immediately. Otherwise inspect tool_input.content (Write) or tool_input.new_string (Edit) and decide if it (a) hardcodes a secret/API key/token, or (b) calls eval() or new Function(). Return JSON ONLY, in the form {\"decision\":\"block\",\"reason\":\"...\"} on a violation, or {\"decision\":\"approve\"} otherwise.\n\nHook input:\n$ARGUMENTS"
+            "prompt": "You are a security linter. The hook input JSON below describes a file Claude just wrote. If tool_input.file_path is not under apps/, packages/, infra/, or .claude/scripts/ — or does not end in .ts, .tsx, .js, .mjs, .py, or .sh — return {\"decision\":\"approve\"} immediately with no other commentary. Otherwise inspect tool_input.content (Write) or tool_input.new_string (Edit) and decide if it (a) hardcodes a real secret/API key/token (a placeholder or example string in a config file's fallback or .env.example is fine), (b) calls eval() or new Function(), or (c) introduces a clear command/SQL injection. Return JSON ONLY, in the form {\"decision\":\"block\",\"reason\":\"...\"} on a violation, or {\"decision\":\"approve\"} otherwise.\n\nHook input:\n$ARGUMENTS"
           }
         ]
       }

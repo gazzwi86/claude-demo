@@ -186,5 +186,58 @@ class StopHookFlowTests(unittest.TestCase):
         self.assertLess(captured["len"], 4000 * 4)
 
 
+class AreaForPathTests(unittest.TestCase):
+    """Lock the post-rewrite path → wiki-area contract."""
+
+    def test_packages_returns_package_name(self):
+        self.assertEqual(hooks.area_for_path("packages/shared/src/schemas.ts"), "shared")
+
+    def test_infra_terraform(self):
+        self.assertEqual(hooks.area_for_path("infra/terraform/main.tf"), "infra-terraform")
+
+    def test_infra_docker(self):
+        self.assertEqual(hooks.area_for_path("infra/docker/docker-compose.yml"), "infra-docker")
+
+    def test_web_audio_lib(self):
+        self.assertEqual(hooks.area_for_path("apps/web/lib/audio/engine.ts"), "web-audio")
+
+    def test_web_components_studio(self):
+        self.assertEqual(hooks.area_for_path("apps/web/components/studio/PadGrid.tsx"), "web-studio")
+
+    def test_web_components_ui(self):
+        self.assertEqual(hooks.area_for_path("apps/web/components/ui/Slider.tsx"), "web-ui")
+
+    def test_web_app_pages(self):
+        self.assertEqual(hooks.area_for_path("apps/web/app/(app)/studio/page.tsx"), "web-pages")
+
+    def test_web_hooks(self):
+        self.assertEqual(hooks.area_for_path("apps/web/hooks/useAudioEngine.ts"), "web-hooks")
+
+    def test_api_routes(self):
+        self.assertEqual(hooks.area_for_path("apps/api/src/routes/auth.ts"), "api-routes")
+
+    def test_api_db(self):
+        self.assertEqual(hooks.area_for_path("apps/api/src/db/users.ts"), "api-db")
+
+    def test_api_tests_dir(self):
+        self.assertEqual(hooks.area_for_path("apps/api/tests/auth.test.ts"), "api-tests")
+
+    def test_unknown_top_level_returns_none(self):
+        self.assertIsNone(hooks.area_for_path("README.md"))
+        self.assertIsNone(hooks.area_for_path("docs/wiki/index.md"))
+
+
+class IsTrackedTests(unittest.TestCase):
+    def test_tracked_roots(self):
+        self.assertTrue(hooks.is_tracked("apps/web/app/page.tsx"))
+        self.assertTrue(hooks.is_tracked("packages/shared/src/index.ts"))
+        self.assertTrue(hooks.is_tracked("infra/terraform/main.tf"))
+
+    def test_untracked(self):
+        self.assertFalse(hooks.is_tracked("README.md"))
+        self.assertFalse(hooks.is_tracked("scripts/dev.sh"))
+        self.assertFalse(hooks.is_tracked("src/old.js"))  # legacy path no longer tracked
+
+
 if __name__ == "__main__":
     unittest.main()

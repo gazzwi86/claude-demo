@@ -60,7 +60,7 @@ def rel_from_root(p: str) -> str:
 
 # --- anatomy map (path → wiki page) ---------------------------------------
 
-TRACKED_ROOTS = ("src", "tests")
+TRACKED_ROOTS = ("apps", "packages", "infra")
 
 
 def is_tracked(rel_path: str) -> bool:
@@ -69,13 +69,50 @@ def is_tracked(rel_path: str) -> bool:
 
 
 def area_for_path(rel_path: str) -> Optional[str]:
+    """Map a repo-relative file path to a wiki area name.
+
+    Layout assumption (post-rewrite monorepo):
+      apps/web/{app,components,lib,hooks,e2e,tests}/...   -> "web-<top>"
+      apps/web/lib/audio/...                              -> "web-audio"
+      apps/web/components/<group>/...                     -> "web-<group>"
+      apps/api/src/{routes,services,db,middleware}/...    -> "api-<sub>"
+      apps/api/tests/...                                  -> "api-tests"
+      packages/<name>/...                                 -> "<name>"  (e.g. "shared")
+      infra/<sub>/...                                     -> "infra-<sub>"
+    """
     norm = re.sub(r"^[./\\]+", "", rel_path)
-    if norm == "tests" or norm.startswith("tests/"):
-        return "tests"
-    if not norm.startswith("src/"):
-        return None
     parts = norm.split("/")
-    return "core" if len(parts) == 2 else parts[1]
+    if not parts or not parts[0]:
+        return None
+
+    head = parts[0]
+
+    if head == "packages" and len(parts) >= 2:
+        return parts[1]
+
+    if head == "infra":
+        return "infra-" + (parts[1] if len(parts) > 1 else "root")
+
+    if head == "apps" and len(parts) >= 3:
+        app = parts[1]
+        top = parts[2]
+        if app == "web":
+            if top == "lib" and len(parts) > 3 and parts[3] == "audio":
+                return "web-audio"
+            if top == "components" and len(parts) > 3:
+                return f"web-{parts[3]}"
+            if top == "app":
+                return "web-pages"
+            return f"web-{top}"
+        if app == "api":
+            if top == "src" and len(parts) > 3:
+                return f"api-{parts[3]}"
+            if top == "tests":
+                return "api-tests"
+            return f"api-{top}"
+        return f"{app}-{top}"
+
+    return None
 
 
 def wiki_page_for_path(rel_path: str) -> Optional[str]:
@@ -99,7 +136,7 @@ def check_no_secrets(payload: dict) -> None:
     tool_input = payload.get("tool_input") or {}
     file_path = tool_input.get("file_path") or ""
 
-    if not re.search(r"(?:^|/)(?:src|\.claude/scripts)/", file_path):
+    if not re.search(r"(?:^|/)(?:apps|packages|infra|\.claude/scripts)/", file_path):
         return
 
     content = tool_input.get("content") or tool_input.get("new_string") or ""
@@ -186,25 +223,15 @@ def _find_cycle(start: Path) -> Optional[list[Path]]:
     return dfs(start)
 
 
-def check_circular_deps(payload: dict) -> None:
-    """PostToolUse:Edit|Write — DFS the require() graph; block on cycle."""
-    file_path = (payload.get("tool_input") or {}).get("file_path") or ""
-    if not file_path:
-        return
+def check_circular_deps(_payload: dict) -> None:
+    """PostToolUse:Edit|Write — disabled.
 
-    abs_ = Path(file_path) if os.path.isabs(file_path) else (PROJECT_ROOT / file_path).resolve()
-    scope_dir = PROJECT_ROOT / "src"
-    try:
-        abs_.relative_to(scope_dir)
-    except ValueError:
-        return
-    if abs_.suffix != ".js" or not abs_.exists():
-        return
-
-    cycle = _find_cycle(abs_)
-    if cycle:
-        rel = [str(p.relative_to(PROJECT_ROOT)) for p in cycle]
-        block(f"check-circular-deps: cycle detected from {rel[0]}\n  {' -> '.join(rel)}")
+    The original DFS walked CommonJS `require()` edges in `src/*.js`. The
+    rewrite uses TypeScript + ESM across `apps/`, `packages/` — `_extract_requires`
+    no longer applies. Re-enable by shelling to `madge --circular --extensions ts,tsx`
+    if a cycle gate is wanted again.
+    """
+    return
 
 
 def mark_anatomy_stale(payload: dict) -> None:
@@ -248,7 +275,7 @@ def claude_review(payload: dict) -> None:
     """
     tool_input = payload.get("tool_input") or {}
     file_path = tool_input.get("file_path") or ""
-    if not re.search(r"(?:^|/)src/.+\.js$", file_path):
+    if not re.search(r"(?:^|/)(?:apps|packages)/.+\.(?:ts|tsx|js)$", file_path):
         return
 
     content = tool_input.get("content") or tool_input.get("new_string") or ""

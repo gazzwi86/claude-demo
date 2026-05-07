@@ -1,14 +1,32 @@
 {
-  "name": "claude-code-demo",
-  "version": "1.0.0",
-  "description": "Demo project for showcasing Claude Code features",
-  "main": "src/index.js",
-  "scripts": {
-    "start": "node src/index.js",
-    "dev": "node --watch src/index.js",
-    "test": "node --test tests/**/*.test.js",
-    "lint": "echo 'lint passed'"
+  "name": "claude-demo-music-looper",
+  "version": "0.1.0",
+  "description": "Music looping web app — Claude Code demo monorepo",
+  "private": true,
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
   },
-  "keywords": [],
-  "license": "MIT"
+  "packageManager": "pnpm@10.33.4",
+  "scripts": {
+    "dev": "concurrently -n web,api -c blue,magenta \"pnpm -F @looper/web dev\" \"pnpm -F @looper/api dev\"",
+    "build": "pnpm -r build",
+    "test": "pnpm -r --parallel test",
+    "test:web": "pnpm -F @looper/web test",
+    "test:api": "pnpm -F @looper/api test",
+    "test:shared": "pnpm -F @looper/shared test",
+    "e2e": "pnpm -F @looper/web e2e",
+    "e2e:visual": "pnpm -F @looper/web e2e:visual",
+    "e2e:update": "pnpm -F @looper/web e2e:update",
+    "lint": "pnpm -r --parallel lint",
+    "typecheck": "pnpm -r --parallel typecheck",
+    "localstack:up": "docker compose -f infra/docker/docker-compose.yml up -d",
+    "localstack:down": "docker compose -f infra/docker/docker-compose.yml down -v",
+    "localstack:seed": "docker compose -f infra/docker/docker-compose.yml run --rm init",
+    "infra:validate": "cd infra/terraform && terraform init -backend=false && terraform validate"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0",
+    "typescript": "^5.6.3"
+  }
 }

@@ -1,0 +1,55 @@
+name: looper-localstack
+
+services:
+  dynamodb-local:
+    image: amazon/dynamodb-local:latest
+    container_name: looper-ddb
+    command: ["-jar", "DynamoDBLocal.jar", "-sharedDb", "-dbPath", "/home/dynamodblocal/data"]
+    user: root
+    working_dir: /home/dynamodblocal
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./.data/ddb:/home/dynamodblocal/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000 || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: looper-ls
+    environment:
+      SERVICES: s3
+      DEFAULT_REGION: us-east-1
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      DEBUG: "0"
+    ports:
+      - "4566:4566"
+    volumes:
+      - ./.data/ls:/var/lib/localstack
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:4566/_localstack/health | grep -q '\"s3\": \"available\"' || exit 1"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  init:
+    image: amazon/aws-cli:latest
+    container_name: looper-init
+    depends_on:
+      dynamodb-local:
+        condition: service_healthy
+      localstack:
+        condition: service_healthy
+    environment:
+      AWS_ACCESS_KEY_ID: local
+      AWS_SECRET_ACCESS_KEY: local
+      AWS_DEFAULT_REGION: us-east-1
+    entrypoint: ["/bin/sh", "/init/seed.sh"]
+    volumes:
+      - ./init:/init:ro
+      - ../../apps/web/public/samples:/samples:ro
+    restart: "no"
