@@ -2,7 +2,9 @@
 
 A walkthrough script for demoing Claude Code features to engineers — and the quickest path to running everything in this repo.
 
-The repo is a small but realistic blog/CMS REST API (~40 source files, zero external deps, Node `node:test` only). It exists to give Claude something *real* to chew on when we demo features like the LLM wiki, Graphify, and the hook-driven refresh loops.
+The repo is a small but realistic browser-first music-looper monorepo (`apps/web` Next.js 15 + Web Audio, `apps/api` Fastify + DynamoDB, `packages/shared` Zod schemas, `infra/` Terraform + docker-compose). It exists to give Claude something *real* to chew on when we demo features like the LLM wiki, Graphify, hooks, and the user-level `/cc-audit` capability.
+
+The previous blog/CMS state of this repo is preserved at the `pre-rewrite-snapshot` git tag.
 
 ---
 
@@ -26,35 +28,49 @@ There are no `npm run setup*` scripts. Setup is itself a slash command, in keepi
 
 `/setup` configures `git config core.hooksPath .claude/scripts/git-hooks` so `pre-commit` and `pre-push` are versioned with the repo (no `.git/hooks` copy step). `/setup graphify` requires [uv](https://docs.astral.sh/uv/) and runs `uv tool install graphifyy && graphify install && graphify claude install && graphify index .`. Skip if you don't want Graphify in the demo.
 
-### Demo flow (live, ~15 minutes)
+To actually run the app:
+
+```bash
+pnpm install
+cp .env.example .env       # set JWT_SECRET (any long random string for dev)
+pnpm localstack:up         # DynamoDB Local + LocalStack S3
+pnpm localstack:seed       # idempotent — creates tables + bucket
+pnpm dev                   # web on 3000, api on 3001
+```
+
+Web is fully usable without the api — bundled samples are in-process. The api is only needed for sign-up / login / loop persistence.
+
+### Demo flow (live, ~20 minutes)
 
 | # | Show | Trigger | What to call out |
 |---|------|---------|------------------|
-| 1 | Project context (`CLAUDE.md` hierarchy) | open `CLAUDE.md`, `src/CLAUDE.md`, `tests/CLAUDE.md` | Progressive disclosure — only loads what's relevant. |
-| 2 | Settings tour | open `.claude/settings.json` | Permissions allow/ask/deny, hooks, attribution, statusLine, plansDirectory. |
+| 1 | Project context (`CLAUDE.md` hierarchy) | open `CLAUDE.md`, `apps/web/CLAUDE.md`, `apps/api/CLAUDE.md` | Progressive disclosure — only loads what's relevant; per-package CLAUDE.md overrides global rules. |
+| 2 | Settings tour | open `.claude/settings.json` | Permissions allow/ask/deny, hooks, attribution, statusLine, plansDirectory, env (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`). |
 | 3 | Status line | look at the bar above the prompt | `claude-demo · main* · Opus 4.7` from `.claude/scripts/statusline.sh`. |
-| 4 | Hooks: deterministic | ask Claude to add `src/utils/foo.js` requiring `./bar`, then `src/utils/bar.js` requiring `./foo` | `PostToolUse:Edit\|Write` calls `hooks.py post-tool-use check-circular-deps`, blocks on the cycle. |
-| 5 | Hooks: prompt vs command-with-claude-p | ask Claude to write `src/utils/leak.js` containing `eval("...")` or `sk-fake-token` | Same matcher fires `type: "prompt"` (native) **and** `hooks.py post-tool-use claude-review` (command shells out to `claude -p`). Two ways to do the same thing. |
-| 6 | Hooks: pre-write secrets | ask Claude to write `password = "hunter2hunter2"` under `src/` | `PreToolUse:Edit\|Write` runs `hooks.py pre-tool-use check-no-secrets` and blocks before disk write. |
+| 4 | Hooks: pre-write secrets | ask Claude to write `password = "hunter2hunter2"` under `apps/api/src/` | `PreToolUse:Edit\|Write` runs `hooks.py pre-tool-use check-no-secrets` and blocks before disk write. |
+| 5 | Hooks: prompt vs command-with-claude-p | ask Claude to write `apps/api/src/leak.ts` with `eval("...")` or a fake `sk-...` token | Same matcher fires `type: "prompt"` (native) **and** `hooks.py post-tool-use claude-review` (command shells out to `claude -p`). Two ways to do the same thing. |
+| 6 | Hooks: anatomy stale-marker | edit `apps/web/lib/audio/effects.ts`, then open `docs/wiki/web-audio.md` | `PostToolUse:Edit\|Write` runs `hooks.py post-tool-use mark-anatomy-stale` and appends `<!-- stale: ... -->`. |
 | 7 | Native skills | type `/simplify`, `/security-review`, `/review` | All native, no install. |
-| 8 | Custom slash commands | type `/add-endpoint products` | Scaffolds route + service + tests using existing patterns. |
-| 9 | Anatomy / LLM wiki | type `/anatomy` | Generates `ANATOMY.md` + `docs/wiki/<area>.md`. Karpathy-style structured wiki. |
-| 10 | Wiki auto-staling | edit `src/utils/pagination.js`; check `docs/wiki/utils.md` | PostToolUse hook stale-marked it instantly. |
-| 11 | Wiki refresh on commit | `git commit -m "..."` | Pre-commit calls `claude -p "/simplify"` then `/anatomy refresh` for staged files; commit picks up wiki updates. |
-| 12 | Wiki freshness gate | `python3 .claude/scripts/hooks.py check-anatomy-fresh` | Pre-push runs the same check; blocks push if stale. Bypass with `--no-verify`. |
-| 13 | Orchestrator | type `/open-pr` | `/simplify` → `/security-review` → `gh pr create` → `/review` on the new PR. |
-| 14 | Graphify | `/setup graphify` once, then ask Claude "use graphify to find all callers of `sanitizeInput`" | Token-efficient knowledge-graph queries over the codebase. |
-| 15 | MCP | `.claude/settings.json` `mcpServers`; ask "fetch React 19 docs" | `context7` MCP wired per-project. |
-| 16 | Plan mode | `Shift+Tab` then "add rate limiting middleware" | Plans persist to `./plans/`. |
-| 17 | Local-LLM Stop hook | run `/setup llm` to wire ollama/LM Studio + a small model (e.g. `gemma4:e4b`); let conversation drift to a new topic | Stop hook prints `✨ conversation hygiene: consider /compact …` with a one-line reason from the local model. Token-gated so it doesn't run on every turn. |
-| 18 | .claude tests | run `bash .claude/tests/run.sh` | Discovers `*_test.py` siblings under `.claude/` (e.g. `hooks_test.py`) and lists `*.eval.md` skill evals. |
+| 8 | Custom slash commands | type `/add-endpoint`, `/check-health`, `/anatomy` | Scaffolds, probes `/health`, regenerates the wiki using existing patterns. |
+| 9 | LLM wiki | type `/anatomy refresh apps/web/lib/audio/engine.ts` | Regenerates `docs/wiki/web-audio.md` from the source. Karpathy-style structured wiki. |
+| 10 | Wiki refresh on commit | `git commit -m "..."` | Pre-commit calls `claude -p "/simplify"` then `/anatomy refresh` for staged files; commit picks up wiki updates. |
+| 11 | Wiki freshness gate | `python3 .claude/scripts/hooks.py check-anatomy-fresh` | Pre-push runs the same check; blocks push if stale. Bypass with `--no-verify`. |
+| 12 | Orchestrator | type `/open-pr` | `/simplify` → `/security-review` → `gh pr create` → `/review` on the new PR. |
+| 13 | Graphify | `/setup graphify` once, then ask Claude "use graphify to find all callers of `createPad`" | Token-efficient knowledge-graph queries over the codebase. |
+| 14 | MCP | `.claude/settings.json` `mcpServers`; ask "fetch React 19 docs" | `context7` MCP wired per-project. |
+| 15 | Plan mode | `Shift+Tab` then "add a `/sessions` route to persist pad config" | Plans persist to `./plans/`. |
+| 16 | Local-LLM Stop hook | run `/setup llm` to wire ollama/LM Studio + a small model (e.g. `gemma4:e4b`); let conversation drift to a new topic | Stop hook prints `✨ conversation hygiene: consider /compact …` with a one-line reason from the local model. Token-gated so it doesn't run on every turn. |
+| 17 | Hook tests | `bash .claude/tests/run.sh` | Discovers `*_test.py` under `.claude/`, runs `hooks_test.py` (35 tests). Also lists `*.eval.md` skill evals. |
+| 18 | Agent teams | `.claude/settings.json` env `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` | Spawn parallel teammates via `Agent({team_name, name})` for fan-out work; coordinate via `SendMessage`. |
+| 19 | `/cc-audit` (user-level) | type `/cc-audit` | Audits the current repo's `.claude/` against a strict-by-default profile; fans out 9 parallel sub-skills; emits a plan-mode diff bundle. See §15. |
 
 ---
 
 ## 1. Project Configuration (`CLAUDE.md` — Progressive Disclosure)
 
 - `CLAUDE.md` at the repo root is always loaded.
-- Subdirectory `CLAUDE.md` (e.g. `src/CLAUDE.md`, `tests/CLAUDE.md`) loads only when Claude works in that directory.
+- Subdirectory `CLAUDE.md` (e.g. `apps/web/CLAUDE.md`, `apps/api/CLAUDE.md`, `packages/shared/CLAUDE.md`, `infra/CLAUDE.md`) loads only when Claude works in that directory.
+- **Per-package CLAUDE.md overrides** the top-level rules within its tree. Always check the local file before assuming a convention.
 - Keeps context focused and token-efficient.
 
 ---
@@ -64,14 +80,14 @@ There are no `npm run setup*` scripts. Setup is itself a slash command, in keepi
 | Key | Purpose |
 |---|---|
 | `permissions.allow` / `ask` / `deny` | Pre-approve, prompt, or block tool patterns. |
-| `env` | Env vars applied to every session. |
+| `env` | Env vars applied to every session (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`, `teammateMode=auto`). |
 | `hooks` | Run shell commands or prompt-type evaluations on Claude events. |
 | `mcpServers` | Project-level MCP servers (here: `context7`). |
 | `statusLine` | Custom status bar above the prompt. |
 | `attribution.commit` / `attribution.pr` | Default suffix on commits and PR bodies. |
-| `plansDirectory` | Where `/plan` files are stored (here: `./plans`). |
+| `plansDirectory` | Where `/plan` files are stored (here: `./.claude/plans`). |
 
-Deprecated `ignorePaths` was replaced with `permissions.deny "Read(./.env)"` etc.
+Deprecated `ignorePaths` was replaced with `permissions.deny "Read(./.env)"` etc. The current deny list also covers `Bash(curl*)`, `Bash(rm -rf *)`, `Bash(git push --force*)` and reads of `.env*`, `*.pem`, `*.key`.
 
 ---
 
@@ -81,7 +97,9 @@ Always loaded, unlike `CLAUDE.md`. Use for cross-cutting concerns:
 
 - `.claude/rules/security.md` — secret-handling, eval ban, input sanitisation.
 - `.claude/rules/testing.md` — Node test runner, deterministic asserts.
-- `.claude/rules/code-style.md` — CommonJS, 2-space, ≤30-line functions.
+- `.claude/rules/code-style.md` — code conventions.
+
+**Note:** these files currently lack `paths:` glob frontmatter, so they apply globally. The user-level `/cc-audit` skill will flag this in any repo it audits.
 
 ---
 
@@ -97,19 +115,22 @@ Run on Claude's tool/session events. Cannot directly invoke a slash command — 
 
 | Event | Matcher | Type | Handler | Behaviour |
 |---|---|---|---|---|
-| `PreToolUse` | `Edit\|Write` | `command` | `hooks.py pre-tool-use check-no-secrets` | Inspects `tool_input.content` *before* write. Exit 2 = block. |
-| `PreToolUse` | `Glob\|Grep` | `command` | `hooks.py pre-tool-use graphify-hint` | Emits `additionalContext` nudging Claude to consult the graphify index. |
-| `PostToolUse` | `Edit\|Write` | `command` | `hooks.py post-tool-use check-circular-deps` | DFS over `require()` graph from the touched file. Exit 2 = block. |
-| `PostToolUse` | `Edit\|Write` | `command` | `hooks.py post-tool-use mark-anatomy-stale` | Appends `<!-- stale: <path> -->` marker to the wiki page for that area. Always exits 0. |
-| `PostToolUse` | `Edit\|Write` | `command` | `hooks.py post-tool-use claude-review` | Shells out to `claude -p` for an LLM review. Same intent as the `prompt:` hook below; different mechanism. |
+| `PreToolUse` | `Edit\|Write` | `command` | `hooks.py pre-tool-use check-no-secrets` | Inspects `tool_input.content` *before* write. Regex covers `apps|packages|infra|.claude/scripts/`. Exit 2 = block. |
+| `PreToolUse` | `Glob\|Grep` | `command` | `hooks.py pre-tool-use graphify-hint` | Emits `additionalContext` nudging Claude to consult the graphify index when present. |
+| `PostToolUse` | `Edit\|Write` | `command` | `hooks.py post-tool-use mark-anatomy-stale` | Appends `<!-- stale: <path> -->` to the wiki page for that area. Always exits 0. |
+| `PostToolUse` | `Edit\|Write` | `command` | `hooks.py post-tool-use claude-review` | Shells out to `claude -p` for an LLM review. Same intent as the `prompt:` hook below; different mechanism. Async, 45s budget. |
 | `PostToolUse` | `Edit\|Write` | `prompt` | inline | LLM returns `{"decision":"block","reason":"..."}` on secret/eval finding. |
 | `Stop` | — | `command` | `hooks.py stop` | Token-gated drift detector. Above `STOP_HOOK_DRIFT_GATE` (default 30%) it asks a *local* LLM (ollama or LM Studio, configured by `/setup`) whether to suggest `/compact` or `/clear`, then prints the verdict to stderr. Silent no-op when `LLM_BACKEND` is unset. |
 | `SessionStart` | — | `command` | `hooks.py session-start` | Detects unsetup state (no `core.hooksPath`, no graphify index) and prints a one-liner reminder. |
 | `Notification` / `UserPromptSubmit` / `SubagentStop` / `PreCompact` / `SessionEnd` | — | `command` | `hooks.py <event>` | Wired as placeholders so every event lands in one file. |
 
-**Two ways to do the same thing — by design.** The `claude-review` command-hook and the `prompt:` hook on PostToolUse:Edit|Write both ask an LLM to flag secrets/eval. Use the `prompt:` form when you want the runtime to handle the call; use `claude -p` from a command-hook when you need full control (model, output-format, working dir, env, parsing the verdict yourself).
+`check-circular-deps` exists as a code path in `hooks.py` but is currently disabled — the original CommonJS `require()` walker doesn't apply to the TypeScript+ESM rewrite. Re-enable by shelling to `madge --circular --extensions ts,tsx` if a cycle gate is wanted again.
+
+**Two ways to do the same thing — by design.** The `claude-review` command-hook and the `prompt:` hook on `PostToolUse:Edit|Write` both ask an LLM to flag secrets/eval. Use the `prompt:` form when you want the runtime to handle the call; use `claude -p` from a command-hook when you need full control (model, output-format, working dir, env, parsing the verdict yourself).
 
 **Important matchers nuance:** `PreToolUse`/`PostToolUse` matchers match the *tool name* (`Bash`, `Edit|Write`, `mcp__.*`), **not** file paths. Path/folder filtering happens *inside* the script via `tool_input.file_path`. The only path-style matcher is `FileChanged`, and it's literal pipe-separated basenames — no globs.
+
+**Exit-code gotcha:** `0` = success, `2` = block (stderr → Claude). **`exit 1` does NOT block** — Unix convention is flipped here.
 
 **Stdin contract:** every hook receives JSON on stdin (`tool_name`, `tool_input`, `session_id`, `transcript_path`, `cwd`, `permission_mode`, `hook_event_name`). The `prompt` type substitutes that JSON into `$ARGUMENTS`.
 
@@ -119,7 +140,7 @@ Run on `git commit` / `git push` regardless of who's driving. Wired via `git con
 
 | Hook | What it runs | Skip |
 |---|---|---|
-| `pre-commit` | `claude -p "/simplify"` on staged JS, then `claude -p "/anatomy refresh ..."` to update wiki, then `git add ANATOMY.md docs/wiki/` | `--no-verify` |
+| `pre-commit` | `claude -p "/simplify"` on staged files, then `claude -p "/anatomy refresh ..."` to update wiki, then `git add ANATOMY.md docs/wiki/` | `--no-verify` |
 | `pre-push` | `python3 .claude/scripts/hooks.py check-anatomy-fresh` (blocks if stale), then `claude -p "/security-review"` | `--no-verify` |
 
 ### 4c. Tests for the hooks themselves (`.claude/tests/run.sh`)
@@ -128,23 +149,27 @@ Two distinct test surfaces in this repo:
 
 | Surface | Lives in | Tests | Run via |
 |---|---|---|---|
-| **System code** | `tests/*.test.js` | The Node REST API (auth, cache, posts, rate-limit, users, utils) | `npm test` |
-| **Claude scaffolding** | `*_test.py` siblings under `.claude/` | Hook scripts, helpers in `hooks.py`, future slash-command/skill evals | `bash .claude/tests/run.sh` |
+| **App code** | `apps/{web,api}/tests/`, `apps/{web,api}/**/__tests__/`, `packages/shared/src/*.test.ts` | Vitest unit tests; Playwright E2E + visual | `pnpm test`, `pnpm e2e`, `pnpm e2e:visual` |
+| **Claude scaffolding** | `.claude/tests/*_test.py` | Hook scripts, helpers in `hooks.py`, future slash-command/skill evals | `bash .claude/tests/run.sh` |
 
 Convention:
-- **Unit tests as siblings.** A python script `foo.py` gets a `foo_test.py` next to it — co-located, easy to find, no path translation needed (the test imports `foo` directly).
+- **Unit tests live in `.claude/tests/`** as `<name>_test.py`. The runner asserts `≥35` tests run — silent test loss fails the gate.
 - **Skill / agent / command evals as `<name>.eval.md`** next to the `.md` they exercise. The runner lists them but doesn't execute them — they're prompts, you run them with `claude -p "$(cat <evalfile>)"` when you want to evaluate.
-- **`.claude/tests/run.sh`** discovers both and is the single entry point. CI-friendly (non-zero exit on failure).
+- **`.claude/tests/run.sh`** is the single entry point. CI-friendly (non-zero exit on failure).
 
-Current scaffolding test: `.claude/tests/hooks_test.py` covers the Stop hook's pure helpers (token estimate, prompt build, verdict parse, excerpt budgeting against `LLM_CONTEXT_TOKENS`) and the end-to-end `stop()` flow with `_ask_local_llm` mocked. 21 tests, ~6 ms.
+Current scaffolding test: `.claude/tests/hooks_test.py` — **35 tests** covering:
+- The Stop hook's pure helpers (token estimate, prompt build, verdict parse, excerpt budgeting against `LLM_CONTEXT_TOKENS`).
+- The end-to-end `stop()` flow with `_ask_local_llm` mocked.
+- `area_for_path()` mapping (apps/web/lib/audio → web-audio, apps/api/src/routes → api-routes, etc.).
+- `is_tracked()` predicate for the new monorepo layout.
+
+Total runtime: ~6ms.
 
 ---
 
 ## 5. Custom Agents (`.claude/agents/`)
 
-Markdown files defining specialised sub-agents (model, tools, system prompt). Useful for code review, test writing, API design, migrations.
-
-Files: `.claude/agents/api-designer.md`, `.claude/agents/test-writer.md`.
+Markdown files defining specialised sub-agents (model, tools, system prompt). Files: `.claude/agents/api-designer.md`, `.claude/agents/test-writer.md`. Useful for code review, test writing, API design, migrations.
 
 ---
 
@@ -152,10 +177,10 @@ Files: `.claude/agents/api-designer.md`, `.claude/agents/test-writer.md`.
 
 | Command | Purpose |
 |---|---|
-| `/setup [graphify]` | Wire git hooks, chmod scripts, optionally install graphify. Idempotent. Replaces `npm run setup`. |
-| `/add-endpoint <name>` | Scaffold a route + model + test. |
-| `/check-health` | Start the server and probe `/health`. |
-| `/anatomy` | Generate or refresh the structured wiki (full / refresh / lint modes). |
+| `/setup [graphify\|llm]` | Wire git hooks, chmod scripts, optionally install graphify or configure local-LLM Stop hook. Idempotent. Replaces `npm run setup`. |
+| `/add-endpoint <name>` | Scaffold a Fastify route in `apps/api` or a Next.js route handler in `apps/web` with shared zod schema and Vitest test. |
+| `/check-health` | Start the `apps/api` server and probe `/health`. |
+| `/anatomy [refresh\|lint]` | Generate or refresh the structured wiki (full / refresh / lint modes). |
 | `/open-pr` | `/simplify` → `/security-review` → `git push` → `gh pr create` → `/review`. |
 
 ---
@@ -181,15 +206,27 @@ Implements [karpathy's "build a wiki, not a chat history" pattern](https://gist.
 
 | Layer | Lives in | Owner |
 |---|---|---|
-| **Raw sources** | `src/`, `tests/` | Engineers |
+| **Raw sources** | `apps/web/`, `apps/api/`, `packages/shared/`, `infra/` | Engineers |
 | **The Wiki** | `ANATOMY.md`, `docs/wiki/<area>.md` | The LLM (kept in sync by hooks + `/anatomy`) |
 | **The Schema** | `.claude/commands/anatomy.md`, `CLAUDE.md`, `.claude/rules/` | Team |
 
-### What `/anatomy` produces
+### Wiki areas (post-rewrite)
 
-- **`ANATOMY.md`** — top-level index: file tree, area links, file counts, list of stale entries.
-- **`docs/wiki/<area>.md`** — one page per area (`core`, `routes`, `services`, `middleware`, `models`, `utils`, `cache`, `db`, `tests`). Each page lists every file in the area with a short description, function list with one-liners, exports, and dependencies.
-- **`docs/wiki/log.md`** — append-only log of ingest/refresh operations.
+The `area_for_path()` helper in `hooks.py` maps repo paths to wiki pages:
+
+| Path | Wiki page |
+|---|---|
+| `apps/web/lib/audio/...` | `docs/wiki/web-audio.md` |
+| `apps/web/components/studio/...` | `docs/wiki/web-studio.md` |
+| `apps/web/app/...` | `docs/wiki/web-pages.md` |
+| `apps/web/components/ui/...` | `docs/wiki/web-ui.md` |
+| `apps/web/lib/...` | `docs/wiki/web-lib.md` |
+| `apps/web/hooks/...` | `docs/wiki/web-hooks.md` |
+| `apps/web/e2e/...` | `docs/wiki/web-e2e.md` |
+| `apps/api/src/{routes,services,db,middleware,errors.ts}` | `docs/wiki/api-{routes,services,db,middleware,errors.ts}.md` |
+| `apps/api/tests/...` | `docs/wiki/api-tests.md` |
+| `packages/shared/...` | `docs/wiki/shared.md` |
+| `infra/terraform/...` | `docs/wiki/infra-terraform.md` |
 
 ### Three modes
 
@@ -201,18 +238,11 @@ Implements [karpathy's "build a wiki, not a chat history" pattern](https://gist.
 
 ### How freshness is enforced
 
-1. **`PostToolUse:Edit|Write` hook** marks the touched area page stale (`<!-- stale: src/foo/bar.js -->`).
+1. **`PostToolUse:Edit|Write` hook** marks the touched area page stale (`<!-- stale: apps/web/lib/audio/effects.ts -->`).
 2. **Pre-commit** runs `/anatomy refresh` for staged tracked files and `git add`s the wiki diff into the commit.
 3. **Pre-push** runs `hooks.py check-anatomy-fresh`; any remaining `<!-- stale: ... -->` blocks the push with a copy-paste refresh command.
 
-So the wiki cannot drift more than one commit behind the code, and only blocks at push time — the lowest-friction enforcement point.
-
-### Demo
-
-1. Run `/anatomy` to seed the wiki from the existing 40-file codebase.
-2. Edit `src/utils/pagination.js` — watch `docs/wiki/utils.md` get a fresh `<!-- stale: ... -->` marker within seconds.
-3. `git commit` — pre-commit refreshes the wiki and bundles it into the commit.
-4. `git push` — would block if you skipped step 3 (`--no-verify` to bypass).
+The wiki cannot drift more than one commit behind the code, and only blocks at push time — the lowest-friction enforcement point.
 
 ---
 
@@ -222,20 +252,18 @@ So the wiki cannot drift more than one commit behind the code, and only blocks a
 
 ### Setup
 
-Inside the Claude REPL:
-
 ```text
 > /setup graphify
 ```
 
-That runs `uv tool install graphifyy && graphify install && graphify claude install && graphify index .` (via [.claude/scripts/setup-graphify.sh](.claude/scripts/setup-graphify.sh)). Requires [uv](https://docs.astral.sh/uv/) on PATH.
+Runs `uv tool install graphifyy && graphify install && graphify claude install && graphify index .` (via `.claude/scripts/setup-graphify.sh`). Requires [uv](https://docs.astral.sh/uv/) on PATH.
 
 ### Demo
 
 ```text
-> use graphify to list every callsite of sanitizeInput
-> use graphify to show the dependency graph between services and routes
-> use graphify to find files that import the rate-limit middleware
+> use graphify to list every callsite of createPad
+> use graphify to show the dependency graph between apps/api/src/services and apps/api/src/routes
+> use graphify to find files that import @looper/shared
 ```
 
 ### Why pair it with `/anatomy`?
@@ -263,83 +291,177 @@ claude mcp list
 ### Headless / CI mode (used by our git hooks)
 
 ```bash
-claude -p "/simplify Focus on these files: src/utils/pagination.js" --output-format text
+claude -p "/simplify Focus on these files: apps/web/lib/audio/effects.ts" --output-format text
 echo "explain this error" | claude -p
 ```
 
 ### Plan mode
 
-`Shift+Tab` toggles plan mode. Plans land in `./plans/`.
+`Shift+Tab` toggles plan mode. Plans land in `.claude/plans/`.
 
 ### Auto mode
 
 ```bash
 claude --auto
-claude --allowedTools "Edit,Write,Read,Bash(npm test)"
+claude --allowedTools "Edit,Write,Read,Bash(pnpm test)"
 ```
 
 ### Context mentions
 
-`@file:src/services/auth.js`, `@url:...`, `@git:main..HEAD`.
+`@file:apps/web/lib/audio/engine.ts`, `@url:...`, `@git:main..HEAD`.
 
 ---
 
-## 12. Project File Tree
+## 12. Agent teams
+
+The repo enables agent teams via `.claude/settings.json` env: `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`, `teammateMode=auto`.
+
+Spawn fan-out work via the `Agent` tool with `team_name` and `name`:
+
+```python
+Agent({
+  team_name: "music-looper-build",
+  name: "api-engineer",
+  subagent_type: "general-purpose",
+  prompt: "Build apps/api/src/services/loopService.ts per the plan ..."
+})
+```
+
+Coordinate via `SendMessage({to: "<name>", message: "..."})`. Teammates can join the team via the same `team_name`. Shut down with `SendMessage({to: "<name>", message: {type: "shutdown_request"}})`.
+
+**Footgun spotted in this project:** teammates can deadlock on permission prompts the user hasn't seen — they go idle waiting for approval and queued messages don't get processed. Either approve permissions in advance via `permissions.allow`, or have the team-lead shut deadlocked teammates down and fall back to direct work.
+
+---
+
+## 13. Project File Tree
 
 ```
 claude-demo/
 ├── CLAUDE.md
 ├── DEMO_GUIDE.md
 ├── ANATOMY.md                          ← LLM-owned; generated by /anatomy
-├── package.json
-├── plans/
+├── STATUS.md                           ← rewrite handoff
+├── package.json                        ← workspaces
+├── pnpm-workspace.yaml
+├── pnpm-lock.yaml
+├── tsconfig.base.json
+├── apps/
+│   ├── web/                            ← Next.js 15 + Tailwind 4 + Web Audio
+│   │   ├── CLAUDE.md
+│   │   ├── app/                        ← App Router (auth + studio + dashboard + account)
+│   │   ├── components/{studio,ui}/
+│   │   ├── lib/audio/                  ← AudioEngine, PadNode, EffectsBus, recorder
+│   │   ├── hooks/                      ← useAudioEngine, usePad, useRecorder
+│   │   ├── e2e/                        ← Playwright behavioural + visual specs
+│   │   └── public/samples/
+│   └── api/                            ← Fastify + AWS SDK v3
+│       ├── CLAUDE.md
+│       └── src/
+│           ├── server.ts
+│           ├── config.ts errors.ts
+│           ├── routes/{auth,loops}.ts
+│           ├── services/{authService,loopService,s3Service}.ts
+│           ├── db/{users,loops,storage}.ts
+│           └── middleware/{authGuard,errorHandler}.ts
+├── packages/
+│   └── shared/                         ← @looper/shared — zod schemas + types
+│       ├── CLAUDE.md
+│       └── src/{schemas,types,constants,index}.ts
+├── infra/
+│   ├── CLAUDE.md
+│   ├── terraform/                      ← validate-only modules
+│   │   └── modules/{s3-loops,dynamodb,iam,cloudfront}/
+│   └── docker/                         ← docker-compose + seed.sh
 ├── docs/
 │   └── wiki/                           ← LLM-owned per-area pages
-│       ├── core.md   routes.md   services.md   middleware.md
-│       ├── models.md utils.md   cache.md   db.md   tests.md
-│       └── log.md                      ← append-only operation log
-├── .claude/
-│   ├── settings.json
-│   ├── settings.local.json             ← gitignored
-│   ├── rules/
-│   ├── agents/
-│   ├── commands/
-│   │   ├── add-endpoint.md
-│   │   ├── check-health.md
-│   │   ├── anatomy.md                  ← LLM-wiki schema
-│   │   └── open-pr.md
-│   ├── skills/
-│   └── scripts/                        # Claude-only scripts
-│       ├── hooks.py                    # single dispatcher for every hook event
-│       ├── statusline.sh
-│       ├── setup-graphify.sh
-│       └── git-hooks/
-│           ├── pre-commit              # claude -p /simplify + /anatomy refresh
-│           └── pre-push                # anatomy gate + claude -p /security-review
-├── src/                                # ~40 files: blog/CMS REST API
-│   ├── config.js   errors.js   server.js   router.js   index.js
-│   ├── routes/     services/   middleware/   models/
-│   ├── utils/      cache/      db/
-└── tests/                              # node:test, 44 deterministic tests
+│       ├── web-audio.md  web-studio.md  web-pages.md  web-hooks.md  web-ui.md
+│       ├── web-lib.md    web-e2e.md
+│       ├── api-routes.md api-services.md api-db.md  api-middleware.md  api-tests.md
+│       ├── shared.md     infra-terraform.md
+│       └── ...
+├── .github/workflows/                  ← ci, e2e, terraform, build
+└── .claude/
+    ├── settings.json
+    ├── settings.local.json             ← gitignored
+    ├── rules/{security,testing,code-style}.md
+    ├── agents/{api-designer,test-writer}.md
+    ├── commands/{add-endpoint,check-health,setup,open-pr,anatomy}.md
+    ├── plans/                          ← plansDirectory
+    ├── tests/
+    │   ├── run.sh                      ← single entry point, asserts ≥35 tests run
+    │   └── hooks_test.py               ← 35 tests for hooks.py
+    └── scripts/                        ← Claude-only scripts
+        ├── hooks.py                    ← single dispatcher for every hook event
+        ├── statusline.sh
+        ├── setup-graphify.sh
+        └── git-hooks/{pre-commit,pre-push}
 ```
 
 ---
 
-## 13. Things That Look Real But Aren't
+## 14. Things That Look Real But Aren't
 
 While preparing this repo we validated a popular third-party hooks README against the official docs. Beware:
 
 - `$CLAUDE_FILE_PATH` env var — fabricated. File path comes from stdin JSON `tool_input.file_path`.
 - `/advisor` slash command — not native and not on the official marketplace.
 - `ignorePaths` in `settings.json` — deprecated; use `permissions.deny "Read(...)"`.
+- Hook `exit 1` blocking — it doesn't. Only `exit 2` blocks.
+- `forceLoginMethod: ["claudeai"]` array form — fails silently. It's a string, not array.
 
 When you copy-paste from the internet, sanity-check against `https://code.claude.com/docs/en/hooks` and `https://code.claude.com/docs/en/settings`.
 
 ---
 
-## 14. Bonus Topics
+## 15. `/cc-audit` — user-level Claude Code config audit (bonus demo)
 
-- **Memory system** — `~/.claude/projects/<repo>/memory/`.
-- **Worktrees** — agents can work in isolated git worktrees.
+A user-level capability installed at `~/.claude/skills/cc-audit/` plus 9 sibling `~/.claude/skills/cc-audit-<area>/` skills, with slash command `/cc-audit`. **Not part of this repo** — installed once, runs against any repo.
+
+### What it does
+
+1. **Inspect** the target repo deterministically (languages, monorepo signals, OSS, managed policy, existing `.claude/`).
+2. **Interview** via ≤8 MCQ questions for ambiguous decisions.
+3. **Fan out 9 parallel sub-skills** (`cc-audit-{settings,permissions,security,claude-md,skills,hooks,git-hooks,enterprise,monorepo}`), each emitting Finding JSON.
+4. **Merge** findings, dedupe cross-area concerns.
+5. **Council critique** — 5 personas (Security analyst, Lead engineer, AI-novice, DevOps, Karpathy-style reviewer) emit structured `propose:{add,change,remove}` ops.
+6. **Emit** plan-mode diff bundle + `<repo>/.claude/reports/CLAUDE-CONFIGURATION-AUDIT.md`.
+7. With `--apply`, invokes `bootstrap.sh` (per-cluster confirmation, atomic backups, flock-protected manifest).
+
+### Strict-by-default profile
+
+The baseline ships:
+- Self-modification guard: `Edit/Write(./.claude/settings.json)` and `Edit/Write(./.claude/scripts/hooks.py)` denied.
+- IaC plan-before-apply: `terraform apply` / `cdk deploy` / `pulumi up` blocked without a fresh plan marker.
+- Secret scan: gitleaks if installed, regex fallback always active.
+- PII masking on `Stop`.
+- `--no-verify` deny via PreToolUse:Bash hook.
+
+### Run against this repo
+
+```bash
+/cc-audit                # plan only
+/cc-audit --dry-run      # diff without writing
+/cc-audit --apply        # scaffold with per-cluster confirmation
+/cc-audit --lite         # solo/throwaway profile
+/cc-audit --force        # re-apply ignoring manifest
+```
+
+### Test suite
+
+The cc-audit capability has its own test tree at `~/.claude/tests/`:
+- **36 unit tests** (pytest): per-skill `inspect.py`, cross-skill ownership-boundary check, orchestrator fan-out (trace mode), trigger-parser smoke.
+- **7 integration tests** (bash): `bootstrap.sh` apply/dry-run/idempotent/Husky-collision, guards, manifest atomicity, user-edit drift.
+- **Tier 3 trigger eval** (opt-in, ~$0.50): does the model invoke the right skill for a natural-language prompt?
+- Single entry point: `bash ~/.claude/tests/run.sh`. Coverage map prints finding-ID coverage per area.
+
+Demo-flow value: `/cc-audit` against this very repo surfaces (correctly) that `Edit/Write(./.claude/settings.json)` and `Edit/Write(./.claude/scripts/hooks.py)` denies are missing, gitleaks isn't installed, and `.claude/rules/*.md` lack `paths:` glob frontmatter. All real, all addressable.
+
+---
+
+## 16. Bonus Topics
+
+- **Memory system** — `~/.claude/projects/<repo>/memory/`. Persists across sessions; saves user/feedback/project/reference notes the model can recall later.
+- **Worktrees** — agents can work in isolated git worktrees via `Agent({isolation: "worktree"})`.
 - **Keybindings** — customise in `~/.claude/keybindings.json`.
 - **`/cost`**, **`/compact`**, **`/init`**, **Esc** to interrupt, **Shift+Tab** for plan mode.
+- **Pre-rewrite snapshot** — the original blog/CMS state of this repo lives at the `pre-rewrite-snapshot` git tag. `git checkout pre-rewrite-snapshot` to see it.
