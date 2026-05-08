@@ -15,3 +15,5 @@ _(empty — run /anatomy)_
 <!-- stale: apps/web/lib/audio/engine.ts --> <!-- at: 2026-05-07T23:39:37.671177+00:00 -->
 
 <!-- stale: apps/web/lib/audio/__tests__/effects.test.ts --> <!-- at: 2026-05-07T23:40:25.174759+00:00 -->
+
+<!-- stale: apps/web/lib/audio/synth.ts --> <!-- at: 2026-05-08T00:06:27.535537+00:00 -->

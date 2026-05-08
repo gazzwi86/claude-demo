@@ -64,6 +64,15 @@ export class AudioEngine {
 
   async loadPad(index: number, loopId: string, url: string): Promise<void> {
     const buffer = await loadAudioBuffer(this.ctx, url);
+    this.loadPadBuffer(index, loopId, url, buffer);
+  }
+
+  /**
+   * Like loadPad but takes a pre-decoded AudioBuffer (e.g. one rendered by
+   * the in-process synth, or the result of a successful upload). Used by
+   * the bundled-samples library and by the recorder's "preview" path.
+   */
+  loadPadBuffer(index: number, loopId: string, url: string | null, buffer: AudioBuffer): void {
     this.unloadPad(index);
     const state = this.padState[index]!;
     const pad = new PadNode(this.ctx, buffer, {
