@@ -111,10 +111,26 @@ Re-run with `node apps/web/e2e/_screenshots.mjs` against a running `pnpm -F @loo
 
 Spawned `api-engineer` and `infra-engineer` early in the session via `Agent` with `isolation: "worktree"`. Both got blocked on permission prompts that didn't reach approval, so the work moved to the main session and completed there. Both teammates have now received `shutdown_request`. The team `music-looper-build` can be cleaned up with `TeamDelete` once both members confirm shutdown.
 
+## Post-rewrite additions
+
+### `/cc-audit` user-level capability
+
+Built at `~/.claude/skills/cc-audit/` + 9 sibling `cc-audit-<area>/` skills, with slash command at `~/.claude/commands/cc-audit.md`. Audits any repo's `.claude/` against a strict-by-default profile, scaffolds via `bootstrap.sh` (per-cluster confirmation, atomic backups, flock-protected manifest). Documented in `DEMO_GUIDE.md` §15. **Not part of this repo's tracked files** — user-level install only.
+
+Test suite at `~/.claude/tests/`: 36 unit (pytest) + 7 integration (bash) + Tier 3 trigger-eval (opt-in). Single entry point `bash ~/.claude/tests/run.sh`. Coverage map prints finding-ID coverage per area.
+
+### `.claude/tests/` reorganisation
+
+`hooks_test.py` moved from `.claude/scripts/` → `.claude/tests/hooks_test.py`. `run.sh` updated; `STATUS.md` and `DEMO_GUIDE.md` reference the new path. 35/35 hook tests still pass after the move. The `run.sh` now asserts ≥35 tests run — silent test loss fails the gate (catches regressions where a test file silently fails to import).
+
+### `DEMO_GUIDE.md` rewrite
+
+Fully rewritten for the music-looper monorepo. New sections cover agent teams (§12), `/cc-audit` user-level capability (§15), updated wiki area mappings (§8), the disabled `check-circular-deps` (kept as code path, removed from demo flow), and exit-code gotcha (`exit 1` does NOT block). Old blog/CMS references gone.
+
 ## What's still rough / would be next
 
 - **No real audio files bundled.** The synth sounds work and are demoable, but a real demo would benefit from a handful of CC0 drum/bass/pad loops dropped into `apps/web/public/samples/`. `LICENSES/SAMPLES.md` documents the format.
 - **No `/sessions` endpoint yet.** The schema + types are in `@looper/shared` (`SessionConfigSchema`) but the api routes for save/load aren't built — the studio currently doesn't persist pad configurations across reloads.
 - **`/anatomy` regen.** The `docs/wiki/` pages are mostly stale-marker stubs created by the PostToolUse hook. Run `/anatomy` to populate them properly.
-- **DEMO_GUIDE.md** still describes the previous blog/social project. A short rewrite for the music app would be useful for the engineering team demo.
+- **`.claude/rules/*.md` lack `paths:` globs** — the `/cc-audit` skill flags this in any repo, including this one. Adding `paths:` frontmatter would scope rules per area.
 - **Audio is permissionless in tests.** The studio E2E specs depend on `--use-fake-device-for-media-stream` Chromium flags (set in `playwright.config.ts`). On a real CI runner, the recorder spec would need the same flags to pass.

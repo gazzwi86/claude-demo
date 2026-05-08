@@ -62,6 +62,17 @@ If `graphify-out/graph.json` exists, this project has a graphify knowledge
 graph. Prefer it over `Grep`/`Glob` for cross-file dependency lookups.
 After modifying files, run `graphify update .` to keep it current.
 
+## /cc-audit (user-level)
+
+If installed at `~/.claude/skills/cc-audit/`, the `/cc-audit` slash command
+audits this repo's `.claude/` config against a strict-by-default profile,
+fans out 9 parallel sub-skills, and emits a plan-mode diff bundle.
+
+Run with `/cc-audit` (plan-only), `/cc-audit --dry-run` (diff, no writes),
+or `/cc-audit --apply` (scaffold with per-cluster confirmation).
+
+See `DEMO_GUIDE.md` §15 for the full feature surface.
+
 ## Where things land
 
 - `apps/web/lib/audio/` — Web Audio engine, pad nodes, effects, recorder
