@@ -6,12 +6,12 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 
 ## apps/api/src/routes/auth.ts
 
-**Description:** Fastify plugin for `/auth/*` endpoints. Validates request bodies against `@looper/shared` schemas, delegates to `authService`, and sets/clears an `httpOnly` `looper_auth` JWT cookie. All validation errors are wrapped as `ValidationError` and handled by the central `errorHandler`.
+**Description:** Fastify plugin for `/auth/*` endpoints. Validates request bodies against `@looper/shared` schemas, delegates to `authService`, and sets/clears an `httpOnly` `looper_auth` JWT cookie via a private `setAuthCookie` helper. Signup and login are rate-limited to 5 requests per minute via `@fastify/rate-limit`. Validation errors are wrapped as `ValidationError` and handled by the central `errorHandler`.
 
 ### Routes
 
-- **`POST /auth/signup`** — validates SignupSchema, calls `signup()`, sets auth cookie, returns `{ user: PublicUser }`
-- **`POST /auth/login`** — validates LoginSchema, calls `login()`, sets auth cookie, returns `{ user: PublicUser }`
+- **`POST /auth/signup`** — rate-limited (5/min); validates SignupSchema, calls `signup()`, sets auth cookie, returns `{ user: PublicUser }`
+- **`POST /auth/login`** — rate-limited (5/min); validates LoginSchema, calls `login()`, sets auth cookie, returns `{ user: PublicUser }`
 - **`POST /auth/logout`** — clears auth cookie, returns 204
 - **`GET /auth/me`** — guarded by `authGuard`, fetches current user, returns `{ user: PublicUser }`
 
@@ -48,4 +48,3 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 
 <!-- stale: apps/api/src/routes/CLAUDE.md --> <!-- at: 2026-05-08T05:03:35.965007+00:00 -->
 
-<!-- stale: apps/api/src/routes/auth.ts --> <!-- at: 2026-05-08T05:11:37.734089+00:00 -->

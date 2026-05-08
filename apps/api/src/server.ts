@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
+import rateLimit from "@fastify/rate-limit";
 import { config } from "./config.js";
 import { registerErrorHandler } from "./middleware/errorHandler.js";
 import authRoutes from "./routes/auth.js";
@@ -19,6 +20,9 @@ export async function buildServer() {
   await app.register(cors, {
     origin: [config.webOrigin],
     credentials: true,
+  });
+  await app.register(rateLimit, {
+    global: false,
   });
 
   registerErrorHandler(app);

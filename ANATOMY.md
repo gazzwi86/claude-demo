@@ -124,4 +124,4 @@ infra/
 
 ## Stale entries
 
-_(none — full refresh completed 2026-05-08T14:00:00Z)_
+- `apps/api/src/routes/CLAUDE.md` — [api-routes](docs/wiki/api-routes.md)

@@ -23,8 +23,10 @@ function setAuthCookie(reply: FastifyReply, token: string): void {
   reply.setCookie(AUTH_COOKIE_NAME, token, { ...cookieOpts, secure: config.isProd });
 }
 
+const AUTH_RATE_LIMIT = { max: 5, timeWindow: "1 minute" };
+
 export default async function authRoutes(app: FastifyInstance): Promise<void> {
-  app.post("/auth/signup", async (request, reply) => {
+  app.post("/auth/signup", { config: { rateLimit: AUTH_RATE_LIMIT } }, async (request, reply) => {
     const parsed = SignupSchema.safeParse(request.body);
     if (!parsed.success) throw new ValidationError(parsed.error.flatten());
     const { user, token } = await signup(parsed.data);
@@ -32,7 +34,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
     return { user: toPublicUser(user) };
   });
 
-  app.post("/auth/login", async (request, reply) => {
+  app.post("/auth/login", { config: { rateLimit: AUTH_RATE_LIMIT } }, async (request, reply) => {
     const parsed = LoginSchema.safeParse(request.body);
     if (!parsed.success) throw new ValidationError(parsed.error.flatten());
     const { user, token } = await login(parsed.data);
