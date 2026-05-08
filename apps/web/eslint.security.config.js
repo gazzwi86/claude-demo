@@ -4,18 +4,17 @@ import noUnsanitized from "eslint-plugin-no-unsanitized";
 
 export default [
   {
-    ignores: ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
+    ignores: ["**/*.d.ts", "**/*.{test,spec}.{ts,tsx}"],
   },
   {
     files: ["**/*.ts", "**/*.tsx"],
     languageOptions: { parser: tsParser },
-    ...security.configs.recommended,
-  },
-  {
-    files: ["**/*.ts", "**/*.tsx"],
-    languageOptions: { parser: tsParser },
-    plugins: { "no-unsanitized": noUnsanitized },
+    plugins: {
+      ...security.configs.recommended.plugins,
+      "no-unsanitized": noUnsanitized,
+    },
     rules: {
+      ...security.configs.recommended.rules,
       "no-unsanitized/method": "error",
       "no-unsanitized/property": "error",
     },
