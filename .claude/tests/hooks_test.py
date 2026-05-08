@@ -412,5 +412,36 @@ class IsTrackedTests(unittest.TestCase):
         self.assertFalse(hooks.is_tracked("src/old.js"))  # legacy path no longer tracked
 
 
+class CheckNoSecretsTests(unittest.TestCase):
+    def _make_payload(self, file_path: str, content: str) -> dict:
+        return {"tool_input": {"file_path": file_path, "content": content}}
+
+    def test_allowlist_skips_test_file(self):
+        # A test file with a fixture password must not be blocked.
+        payload = self._make_payload(
+            "apps/api/tests/auth.test.ts",
+            'const PASSWORD = "supersecret123";',
+        )
+        # Should not call sys.exit — no SystemExit raised.
+        hooks.check_no_secrets(payload)
+
+    def test_eval_pattern_caught_in_source_file(self):
+        payload = self._make_payload(
+            "apps/api/src/routes/auth.ts",
+            "const result = eval(userInput);",
+        )
+        with self.assertRaises(SystemExit) as cm:
+            hooks.check_no_secrets(payload)
+        self.assertEqual(cm.exception.code, 2)
+
+    def test_fixture_password_in_spec_file_not_blocked(self):
+        # *.spec.ts files are also in the allowlist.
+        payload = self._make_payload(
+            "apps/web/lib/auth.spec.ts",
+            'password: "mypassword123", token: "abc123token456"',
+        )
+        hooks.check_no_secrets(payload)  # must not raise
+
+
 if __name__ == "__main__":
     unittest.main()
