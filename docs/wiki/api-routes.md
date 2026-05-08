@@ -48,3 +48,5 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 
 <!-- stale: apps/api/src/routes/CLAUDE.md --> <!-- at: 2026-05-08T05:03:35.965007+00:00 -->
 
+
+<!-- stale: apps/api/src/routes/auth.ts --> <!-- at: 2026-05-08T05:45:44.239193+00:00 -->

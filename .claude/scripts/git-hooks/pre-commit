@@ -1,16 +1,39 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Pre-commit: refresh anatomy/wiki for staged source changes.
-# Skip with `git commit --no-verify` when needed.
-
-if ! command -v claude >/dev/null 2>&1; then
-  echo "pre-commit: claude CLI not found, skipping anatomy refresh" >&2
-  exit 0
-fi
+# Pre-commit:
+#   1. Block commits whose staged code exceeds the complexity / maintainability gate.
+#   2. Refresh anatomy/wiki for staged source changes.
+# Skip the whole hook with `git commit --no-verify` when truly necessary.
 
 STAGED=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(ts|tsx|js|mjs)$' || true)
 if [ -z "$STAGED" ]; then
+  exit 0
+fi
+
+# --- Complexity / maintainability gate ----------------------------------
+# Runs ESLint with apps/web/eslint.complexity.config.js against staged
+# files under apps/web. Fails the commit on any violation. The gate is
+# pre-commit only — it does not run during agent edits, so Claude can
+# write code freely and only has to clean up before committing.
+WEB_STAGED=$(echo "$STAGED" | grep -E '^apps/web/' | grep -E '\.(ts|tsx)$' || true)
+if [ -n "$WEB_STAGED" ]; then
+  if [ -f "apps/web/eslint.complexity.config.js" ] && [ -d "apps/web/node_modules/eslint-plugin-sonarjs" ]; then
+    echo "pre-commit: complexity gate (apps/web)..." >&2
+    REL_FILES=$(echo "$WEB_STAGED" | sed 's|^apps/web/||')
+    # shellcheck disable=SC2086
+    if ! (cd apps/web && npx --no eslint -c eslint.complexity.config.js $REL_FILES); then
+      echo "pre-commit: complexity gate FAILED — refactor or run with --no-verify" >&2
+      exit 1
+    fi
+  else
+    echo "pre-commit: complexity gate skipped (eslint-plugin-sonarjs not installed; run pnpm install)" >&2
+  fi
+fi
+
+# --- Anatomy / wiki refresh ---------------------------------------------
+if ! command -v claude >/dev/null 2>&1; then
+  echo "pre-commit: claude CLI not found, skipping anatomy refresh" >&2
   exit 0
 fi
 
