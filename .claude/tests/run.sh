@@ -15,20 +15,33 @@ set -uo pipefail
 ROOT=$(git rev-parse --show-toplevel 2>/dev/null || pwd)
 cd "$ROOT"
 
-echo "==> python sibling tests under .claude/"
+echo "==> python tests under .claude/"
+# Senior council fix: assert minimum test count so silent test loss fails loudly.
+MIN_TEST_FILES=1
 fail=0
 found=0
+total_tests=0
 while IFS= read -r t; do
   [ -z "$t" ] && continue
   found=$((found + 1))
   echo "  -> $t"
-  if ! python3 "$t" -v; then
-    fail=$((fail + 1))
-  fi
+  out=$(python3 "$t" -v 2>&1) || fail=$((fail + 1))
+  echo "$out"
+  # Count "Ran N tests" lines from unittest output
+  n=$(echo "$out" | sed -n 's/^Ran \([0-9]*\) test.*/\1/p' | head -n1)
+  total_tests=$(( total_tests + ${n:-0} ))
 done < <(find .claude -maxdepth 4 -type f -name "*_test.py" 2>/dev/null | sort)
 
-if [ $found -eq 0 ]; then
-  echo "  (no *_test.py files found)"
+if [ $found -lt $MIN_TEST_FILES ]; then
+  echo "FAIL: only $found test files found (expected >= $MIN_TEST_FILES) — silent test loss?" >&2
+  exit 1
+fi
+
+# This repo has known test count = 35 in hooks_test.py. Pin it.
+EXPECTED_MIN_TOTAL=35
+if [ "$total_tests" -lt "$EXPECTED_MIN_TOTAL" ]; then
+  echo "FAIL: $total_tests tests ran (expected >= $EXPECTED_MIN_TOTAL) — silent test loss?" >&2
+  exit 1
 fi
 
 if [ $fail -gt 0 ]; then

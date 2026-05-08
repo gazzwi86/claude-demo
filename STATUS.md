@@ -1,104 +1,120 @@
-# Music-Looper Rewrite — Session Status
+# Music-Looper Rewrite — Final Status
 
-**Branch:** `music-looper-rewrite` (off `pre-rewrite-snapshot` tag, which preserves the original blog/social API)
+**Branch:** `music-looper-rewrite` (off `pre-rewrite-snapshot` tag, which preserves the original blog/social API).
 
-## What landed in main worktree
+**All eight phases complete.** Every phase committed; full repo typechecks; 38 unit + integration tests pass; 12 Playwright E2E tests pass; visual screenshots committed for every page at desktop + mobile.
 
-| Phase | Scope | Commit | Status |
-|---|---|---|---|
-| 0 | Snapshot tag + rewrite branch + enable agent teams | `99fd3fb` | ✅ |
-| 1 | Scaffold monorepo, delete old `src/`/`tests/`, update `.claude/` hooks + commands, regenerate CLAUDE.md | `bca0a05` | ✅ |
-| 5 | Web Audio engine — `EffectsBus`, `PadNode`, recorder, buffers, hooks (`useAudioEngine`, `usePad`, `useRecorder`) | `b8cfef9` | ✅ |
-| 4 | Next.js shell — login/signup/dashboard/account/studio pages, `api-client`/`auth-client`, Button + TextField primitives | `82b0aa1` | ✅ |
-| 6 | Studio UI — TransportBar, PadGrid + Pad, EffectsRack, LoopRecorder, LibraryDrawer, in-process synth samples (kick/snare/hat/bass/pad/blip) | `7f35309` | ✅ |
-| 8 (visual) | Visual review + responsive fixes after Playwright screenshot pass; Next.js webpack `extensionAlias` for `.js → .ts/.tsx`; auth pages `noValidate` so zod runs | `10d97de` | ✅ |
-| 8 (E2E) | Behavioural specs — auth pages + studio (12/12 passing) | TBC commit | ✅ |
+## Commits
 
-**12/12 Playwright E2E tests pass.** Visual screenshots committed under `apps/web/e2e/__local-shots__/` for desktop (1440×900) + mobile (390×844): home, login, signup, dashboard offline state, account, studio gated/active/loaded.
+| Phase | Scope | Commit |
+|---|---|---|
+| 0 | Snapshot tag + rewrite branch + enable agent teams | `99fd3fb` |
+| 1 | Scaffold monorepo, delete old `src/`/`tests/`, rewrite `.claude/` hooks + commands, regenerate CLAUDE.md | `bca0a05` |
+| 5 | Web Audio engine — `EffectsBus`, `PadNode`, recorder, buffers, hooks | `b8cfef9` |
+| 4 | Next.js shell — login/signup/dashboard/account/studio pages, api-client, auth-client, Button + TextField primitives | `82b0aa1` |
+| 6 | Studio UI — TransportBar, PadGrid + Pad, EffectsRack, LoopRecorder, LibraryDrawer, in-process synth samples | `7f35309` |
+| 8 (visual) | Visual review + responsive fixes after Playwright screenshot pass; Next.js webpack `extensionAlias` fix; auth pages `noValidate` so zod runs | `10d97de` |
+| 8 (E2E) | 12 behavioural Playwright specs (auth + studio); STATUS.md initial handoff | `663b4a8` |
+| 2 | Fastify auth — DynamoDB users, bcrypt + jose JWT cookie, error handler, auth guard, in-process DDB stub for tests | `7a8cde1` |
+| 3 | Loops CRUD — partition + GSI queries, presigned S3 PUT/GET URLs, public-vs-private guard, idempotent delete | `22d5684` |
+| 7 | Terraform modules (s3-loops, dynamodb, iam, optional cloudfront) + 4 GitHub Actions workflows (ci, e2e, terraform, build) + LICENSES/SAMPLES.md | `e4a89f5` |
 
-**Typecheck:** `pnpm typecheck` green across all three packages.
+## Verification (local)
 
-**Hook tests:** `python3 .claude/tests/hooks_test.py` — 35/35 pass (including new `AreaForPathTests` + `IsTrackedTests` for the new monorepo path mapping).
+```
+pnpm typecheck          green across @looper/web, @looper/api, @looper/shared
+pnpm test               38/38 pass
+                        - @looper/shared: 12 schema specs
+                        - @looper/api:    24 (11 auth + 13 loops, app.inject() + DDB/S3 stubs)
+                        - @looper/web:    2 effects-defaults sanity
+pnpm exec -F @looper/web playwright test
+                        12/12 pass
+                        - 6 auth-pages.spec (login/signup/home + offline-error path)
+                        - 6 studio.spec (gate -> active -> load sample -> toggle ->
+                                         effects rack -> mute -> stop all)
+python3 .claude/tests/hooks_test.py    35/35 OK
+                        (TokenEstimate, LastMessagesExcerpt, BuildDriftPrompt,
+                         ParseDriftVerdict, StopHookFlow, AreaForPath, IsTracked)
+```
 
-## What is NOT yet landed — agent teammates in worktrees
+## Architecture
 
-Two parallel teammates were spawned via `Agent` with `isolation: "worktree"` and `team_name: "music-looper-build"`. Each is in its own git worktree (separate from this main worktree). Both hit early permission prompts that need approval before they can proceed. **Neither has reported back yet.**
+### `apps/web/` — Next.js 15 + Tailwind 4 + Web Audio
 
-| Teammate | Worktree branch | Phase | Last known state |
-|---|---|---|---|
-| `api-engineer` | (auto-named) | 2 + 3 — Fastify auth, DynamoDB users + loops, presigned S3 URLs, Vitest specs | Waiting on permission for `git branch -a && ls /Users/gareth/Sites/` |
-| `infra-engineer` | (auto-named) | 7 — Terraform modules (s3-loops/dynamodb/iam/cloudfront), 4× GitHub Actions workflows | Waiting on permission for `pnpm install --frozen-lockfile` |
+- `app/(auth)/{login,signup}` — public auth pages, zod-validated, `noValidate` on the form so zod runs.
+- `app/(app)/{studio,dashboard,account}` — authed pages.
+- `lib/audio/{engine,padNode,effects,impulseResponse,buffers,recorder,synth}.ts` — pure imperative audio. `AudioEngine` owns the `AudioContext`; `PadNode`s are created/destroyed imperatively and never recreated by React renders.
+- `hooks/{useAudioEngine,usePad,useRecorder}.ts` — singletons backed by refs.
+- `components/studio/{TransportBar,PadGrid,Pad,EffectsRack,LoopRecorder,LibraryDrawer,Meter}.tsx` — domain components. All use `aria-label` + visible focus rings.
+- `components/ui/{Button,TextField,Slider}.tsx` — primitives.
+- `lib/audio/synth.ts` ships **6 in-process samples** (kick/snare/hat/bass/pad/blip) so the studio is fully demoable with no audio files.
+- `e2e/{auth-pages,studio,visual-tour,_screenshots}.{spec.ts,mjs}` — Playwright behavioural + visual + a one-shot screenshot-driver script.
 
-The web app currently runs **without the api** — the bundled synth samples live entirely in-process (`apps/web/lib/audio/synth.ts`), so the studio is fully demoable today. The dashboard page shows "Failed to fetch" gracefully when the api isn't up.
+### `apps/api/` — Fastify + AWS SDK v3
 
-## How to resume
+- `src/server.ts` — `buildServer()` factory. Wires `@fastify/cookie`, `@fastify/cors`, the typed error handler, and the auth + loops route plugins. `SILENT=1` env disables pino-pretty for tests.
+- `src/config.ts` — env-driven config; `JWT_SECRET` is required (no fallback).
+- `src/errors.ts` — typed `AppError` hierarchy mapped to status codes by the error handler.
+- `src/db/storage.ts` — small abstraction over DynamoDB with a real DynamoDB-Document-Client backing and an in-process `Map`-based stub used in tests via `DDB_USE_STUB=1`. Supports unique-attribute conditional puts (used for email uniqueness), GSI lookups, and prefix queries.
+- `src/db/{users,loops}.ts` — typed table wrappers.
+- `src/services/{authService,s3Service,loopService}.ts` — orchestration. `S3_USE_STUB=1` returns deterministic stub URLs for tests.
+- `src/middleware/{authGuard,errorHandler}.ts`.
+- `src/routes/{auth,loops}.ts` — Fastify plugins.
+- `tests/{setup.ts,auth.test.ts,loops.test.ts}` — Vitest + `app.inject()`. Setup file forces stubs + tiny bcrypt rounds so tests run in milliseconds.
 
-### If you're using the Claude Code CLI / VS Code in this same repo
+### `packages/shared/` — zod schemas + types
 
-You can continue the session and I'll pick up. The two agent worktrees should still exist; you may need to approve their pending permission prompts in the UI to unblock them.
+- `src/schemas.ts` — every cross-package contract: `SignupSchema`, `LoginSchema`, `CreateLoopSchema`, `UpdateLoopSchema`, `LoopMetaSchema`, `PadConfigSchema`, `SessionConfigSchema`. Web + api both import from here.
+- `src/types.ts` / `src/constants.ts` — TS types + `PAD_GRID_SIZE` etc.
+- `src/schemas.test.ts` — 12 contract sanity tests.
 
-### If you're starting a fresh session
+### `infra/`
 
-The plan file at `.claude/plans/the-project-itself-meaning-precious-valiant.md` is the source of truth for what's left. Hand it to a fresh agent with this context:
+- `terraform/` — modules `s3-loops`, `dynamodb`, `iam`, `cloudfront` (off by default). Mirrors the docker-compose / DynamoDB Local shape. Validate-only — `pnpm infra:validate` runs `terraform fmt -check && validate` (via the GH Actions `terraform.yml` workflow).
+- `docker/docker-compose.yml` + `docker/init/seed.sh` — DynamoDB Local on 8000, LocalStack S3 on 4566, idempotent init that creates tables + bucket + CORS + uploads anything in `apps/web/public/samples/` (currently nothing).
 
-> Resume the music-looper rewrite on branch `music-looper-rewrite`. Phases 0, 1, 4, 5, 6, and 8 (visual + E2E) are done in the main worktree (see git log). Phases 2, 3, and 7 are pending — `apps/api/` is a Fastify skeleton with `/health` only, `infra/terraform/` is empty, `.github/workflows/` is empty. Build them per the plan file. The web app already has a fully working studio against in-process synth samples; the missing api work just adds persistence (auth + loops + presigned S3) and the missing infra work adds the Terraform mirror + CI.
+### `.github/workflows/`
 
-### Manual completion path (no further teammates needed)
+- `ci.yml` — push + PR. Lint, typecheck, per-package vitest, hook tests.
+- `e2e.yml` — PR + nightly cron. Brings up docker-compose, runs `pnpm e2e`, uploads playwright-report on failure.
+- `terraform.yml` — PR-only on `infra/terraform/**`. fmt -check, init -backend=false, validate.
+- `build.yml` — push + PR. typechecks api, builds web, caches `.next/cache`.
 
-If you'd rather just finish the remaining phases yourself in this repo:
+### `.claude/`
 
-1. **Phase 2 (auth)** — see `apps/api/CLAUDE.md` for conventions. Build:
-   - `apps/api/src/db/{client,users}.ts` — DynamoDBDocumentClient + typed wrappers
-   - `apps/api/src/services/authService.ts` — bcrypt + jose JWT
-   - `apps/api/src/middleware/{authGuard,errorHandler}.ts`
-   - `apps/api/src/routes/auth.ts` — POST /auth/{signup,login,logout}, GET /auth/me
-   - `apps/api/tests/auth.test.ts` — `app.inject()` against DynamoDB Local (or `DDB_USE_STUB=1`)
+- `settings.json` — hooks (PreToolUse, PostToolUse Edit/Write, Stop, SessionStart, etc.), permissions, env (`CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`), context7 MCP server.
+- `scripts/hooks.py` — central dispatcher. `area_for_path()` maps repo paths to wiki areas (apps/web/lib/audio → web-audio, apps/api/src/routes → api-routes, etc.). `check_no_secrets` regex broadened to `apps|packages|infra|.claude/scripts`. Fired across all three packages without false positives once fixture passwords were extracted to consts.
+- `tests/hooks_test.py` — 35 tests including `AreaForPathTests` + `IsTrackedTests` for the new monorepo path mapping.
+- `commands/{add-endpoint,check-health,setup,open-pr,anatomy}.md` — slash commands rewritten for the new layout.
+- `plans/the-project-itself-meaning-precious-valiant.md` — original plan file (still useful as architectural reference).
 
-2. **Phase 3 (loops + S3)** — same pattern:
-   - `apps/api/src/db/loops.ts`
-   - `apps/api/src/services/{loopService,s3Service}.ts` — presigned PUT/GET via `@aws-sdk/s3-request-presigner`
-   - `apps/api/src/routes/loops.ts`
-   - `apps/api/tests/loops.test.ts`
+## Running it
 
-3. **Phase 7 (Terraform + CI)** — see `infra/CLAUDE.md`. Build modules (`s3-loops`, `dynamodb`, `iam`, `cloudfront`) + four workflows (`ci`, `e2e`, `terraform`, `build`). `pnpm infra:validate` exists at the root.
+```
+pnpm install
+cp .env.example .env       # set JWT_SECRET (any long random string for dev)
+pnpm localstack:up         # DynamoDB Local + LocalStack S3
+pnpm localstack:seed       # idempotent — creates tables + bucket
+pnpm dev                   # web on 3000, api on 3001
+```
 
-4. **Final polish**:
-   - `pnpm exec playwright test` from `apps/web/` (currently 12/12)
-   - Add `apps/web/e2e/visual-tour.spec.ts` snapshots to the committed reference set with `pnpm e2e:update`
-   - Update `DEMO_GUIDE.md`
-   - Run `/anatomy` to regenerate `docs/wiki/`
+Web is fully usable without the api — bundled samples are in-process. The api is needed only for sign-up / login / loop persistence.
 
-## Working stack reminder
+## Visual proof (committed)
 
-- `pnpm dev` — concurrent web (3000) + api (3001)
-- `pnpm test` — Vitest across all workspaces
-- `pnpm e2e` — Playwright behavioural
-- `pnpm e2e:visual` — Playwright `toHaveScreenshot()` (visual regression)
-- `pnpm localstack:up` / `pnpm localstack:seed` — DynamoDB Local + LocalStack S3
-- `pnpm infra:validate` — `terraform validate` (validate-only, never `apply`)
+`apps/web/e2e/__local-shots__/` (1440×900 + 390×844):
+home, login, signup, studio (gated, active, loaded with kick sample on pad 1), dashboard (offline error state), account.
 
-## Files of interest
+Re-run with `node apps/web/e2e/_screenshots.mjs` against a running `pnpm -F @looper/web dev`.
 
-- `.claude/plans/the-project-itself-meaning-precious-valiant.md` — full plan
-- `apps/web/lib/audio/engine.ts` — singleton AudioEngine
-- `apps/web/lib/audio/synth.ts` — in-process bundled samples
-- `apps/web/app/(app)/studio/page.tsx` — studio orchestrator (state mirror + audio engine wiring)
-- `apps/web/components/studio/` — TransportBar / PadGrid / Pad / EffectsRack / LoopRecorder / LibraryDrawer / Meter
-- `packages/shared/src/schemas.ts` — every cross-package zod schema (signup, login, loop, session)
-- `apps/web/e2e/{auth-pages,studio,visual-tour}.spec.ts` — 12 behavioural + visual specs
-- `infra/docker/docker-compose.yml` + `infra/docker/init/seed.sh` — DynamoDB Local + LocalStack with idempotent table/bucket creation
+## Agent teammates
 
-## Visual proof
+Spawned `api-engineer` and `infra-engineer` early in the session via `Agent` with `isolation: "worktree"`. Both got blocked on permission prompts that didn't reach approval, so the work moved to the main session and completed there. Both teammates have now received `shutdown_request`. The team `music-looper-build` can be cleaned up with `TeamDelete` once both members confirm shutdown.
 
-Reference screenshots from this pass:
+## What's still rough / would be next
 
-- `apps/web/e2e/__local-shots__/home-{desktop,mobile}.png`
-- `apps/web/e2e/__local-shots__/login-{desktop,mobile}.png`
-- `apps/web/e2e/__local-shots__/signup-{desktop,mobile}.png`
-- `apps/web/e2e/__local-shots__/studio-gated-{desktop,mobile}.png`
-- `apps/web/e2e/__local-shots__/studio-active-{desktop,mobile}.png`
-- `apps/web/e2e/__local-shots__/studio-loaded-{desktop,mobile}.png`  ← pad 1 with kick sample loaded, library highlights it
-- `apps/web/e2e/__local-shots__/dashboard-{desktop,mobile}.png`
-- `apps/web/e2e/__local-shots__/account-{desktop,mobile}.png`
-
-Re-run with `node apps/web/e2e/_screenshots.mjs` (against a running `pnpm dev`).
+- **No real audio files bundled.** The synth sounds work and are demoable, but a real demo would benefit from a handful of CC0 drum/bass/pad loops dropped into `apps/web/public/samples/`. `LICENSES/SAMPLES.md` documents the format.
+- **No `/sessions` endpoint yet.** The schema + types are in `@looper/shared` (`SessionConfigSchema`) but the api routes for save/load aren't built — the studio currently doesn't persist pad configurations across reloads.
+- **`/anatomy` regen.** The `docs/wiki/` pages are mostly stale-marker stubs created by the PostToolUse hook. Run `/anatomy` to populate them properly.
+- **DEMO_GUIDE.md** still describes the previous blog/social project. A short rewrite for the music app would be useful for the engineering team demo.
+- **Audio is permissionless in tests.** The studio E2E specs depend on `--use-fake-device-for-media-stream` Chromium flags (set in `playwright.config.ts`). On a real CI runner, the recorder spec would need the same flags to pass.
