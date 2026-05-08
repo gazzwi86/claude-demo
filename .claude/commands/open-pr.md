@@ -1,6 +1,6 @@
 ---
 name: open-pr
-description: Clean up, security-check, push, and open a PR with /review run on it.
+description: Clean up, advisory code review, blocking security review, anatomy freshness check, push, and open a PR.
 ---
 
 # /open-pr
@@ -13,22 +13,29 @@ Orchestrates the full pre-PR cleanup and review workflow. Run this when you have
 
 2. **Clean up: `/simplify`.** Invoke the `/simplify` skill on the changed files. Review its suggestions; only keep changes that preserve behaviour. Commit the cleanup as a separate commit named `cleanup: /simplify pass` if anything changed.
 
-3. **Security pre-check: `/security-review`.** Invoke `/security-review` on pending changes. If it reports any high-severity finding (credentials, eval, injection), STOP and report findings to the user — do not push.
+3. **Advisory code review: `/review`.** Run `/review` on the diff of the pending commits. Output the findings to the user. This is advisory — do not block on findings, but surface them so the author can decide whether to address them before pushing.
 
-4. **Push the branch.** `git push -u origin HEAD`. If pre-push hooks fail, report and stop.
+4. **Blocking security review: `/security-review`.** Invoke `/security-review` on pending changes. If it reports any high-severity finding (credentials, eval, injection), STOP and tell the user to fix the issues before merging — do not push.
 
-5. **Open the PR via `gh`.** Run `gh pr create` with:
+5. **Anatomy freshness check.** Run:
+   ```
+   python3 .claude/scripts/hooks.py check-anatomy-fresh
+   ```
+   If it exits non-zero (stale wiki entries detected), STOP. Run `/anatomy refresh <stale-files>` on the listed files, then re-run the check. Do not push until the wiki is fresh.
+
+6. **Push the branch.** `git push -u origin HEAD`. If pre-push hooks fail, report and stop.
+
+7. **Open the PR via `gh`.** Run `gh pr create` with:
    - Title: a concise summary of the change (under 70 chars).
    - Body: a `## Summary` section (1–3 bullets) and a `## Test plan` checklist.
    - The `attribution.pr` suffix from settings.json is appended automatically by Claude Code.
 
-6. **Review the PR: `/review`.** After the PR is created, capture the PR number/URL and invoke `/review <PR_NUMBER>` to do a full review on the live PR.
-
-7. **Report.** Surface to the user:
+8. **Report.** Surface to the user:
    - PR URL
    - `/simplify` outcome (no-op or commit ref)
+   - `/review` top findings (advisory)
    - `/security-review` summary
-   - `/review` top findings
+   - anatomy check outcome
 
 ## Constraints
 
