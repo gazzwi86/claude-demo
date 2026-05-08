@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Pre-push: run /security-review on pending branch changes before push.
-# Blocks the push on findings (exit non-zero). Skip with `git push --no-verify`.
+# Pre-push: run /review (advisory) then /security-review (blocking) on pending branch changes.
+# Blocks the push on security findings (exit non-zero). Skip with `git push --no-verify`.
 
 PROJECT_ROOT=$(git rev-parse --show-toplevel)
 if ! python3 "$PROJECT_ROOT/.claude/scripts/hooks.py" check-anatomy-fresh; then
@@ -11,7 +11,7 @@ if ! python3 "$PROJECT_ROOT/.claude/scripts/hooks.py" check-anatomy-fresh; then
 fi
 
 if ! command -v claude >/dev/null 2>&1; then
-  echo "pre-push: claude CLI not found, skipping /security-review" >&2
+  echo "pre-push: claude CLI not found, skipping /review and /security-review" >&2
   exit 0
 fi
 
@@ -31,7 +31,13 @@ if [ -z "$(git log "$RANGE" --oneline 2>/dev/null || true)" ]; then
   exit 0
 fi
 
-echo "pre-push: running /security-review on $RANGE ..." >&2
+# [advisory] /review pass — output shown but does not block the push.
+echo "pre-push: [advisory] running /review on $RANGE ..." >&2
+REVIEW_PROMPT="/review Review changes in range $RANGE. Summarise quality, correctness, and maintainability concerns."
+claude -p "$REVIEW_PROMPT" --output-format text 2>&1 || true
+
+# [blocking] /security-review pass — blocks on findings.
+echo "pre-push: [blocking] running /security-review on $RANGE ..." >&2
 PROMPT="/security-review Review changes in range $RANGE. Output JSON: {\"findings\":[...],\"block\":true|false}. Block on credentials, eval/Function, SQL injection, command injection."
 RESULT=$(claude -p "$PROMPT" --output-format text 2>&1) || {
   echo "$RESULT" >&2
@@ -42,7 +48,7 @@ RESULT=$(claude -p "$PROMPT" --output-format text 2>&1) || {
 # If the model was asked for JSON and produced "block":true, fail.
 if echo "$RESULT" | grep -qE '"block"[[:space:]]*:[[:space:]]*true'; then
   echo "$RESULT" >&2
-  echo "pre-push: blocking push due to security findings (use --no-verify to bypass)" >&2
+  echo "pre-push: [blocking] push blocked due to security findings (use --no-verify to bypass)" >&2
   exit 1
 fi
 
