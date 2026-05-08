@@ -1,0 +1,44 @@
+# {{PROJECT_NAME}}
+
+{{ONE_LINE_PROJECT_DESCRIPTION}}
+
+## Layout — read this map before grepping
+
+| Path | What it is | Conventions live in |
+|---|---|---|
+| `<path-1>` | description | `<path-1>/CLAUDE.md` |
+| `<path-2>` | description | `<path-2>/CLAUDE.md` |
+
+**Per-package CLAUDE.md files override the global rules** for code style, test
+runner, and module system within their package. Always check them before
+assuming a convention from this top-level file.
+
+## Top-level commands
+
+- `<install-command>`
+- `<dev-command>`
+- `<test-command>`
+- `<lint-command>`
+- `<typecheck-command>`
+
+## Conventions (top-level — packages override)
+
+- {{LANGUAGE}} everywhere except `infra/` (if present)
+- Test framework: {{TEST_FRAMEWORK}}
+- Module system: ESM / CJS — pick one
+- {{ONE_OR_TWO_CRITICAL_RULES_AT_TOP_LEVEL}}
+
+## Navigation
+
+- See `.claude/rules/*.md` for path-globbed rules (code style, testing, security).
+- See `.claude/best-practises/*.md` for area-specific best practices.
+- Per-area `CLAUDE.md` files override these top-level conventions.
+
+## Where things land
+
+- {{PATH_1}} — {{WHAT_LIVES_THERE}}
+- {{PATH_2}} — {{WHAT_LIVES_THERE}}
+
+<!-- Keep this file under 100 lines. Cluster topic-specific rules into
+.claude/rules/<topic>.md with `paths:` glob frontmatter so they only load
+where relevant. Bloated CLAUDE.md gets ignored by Claude. -->

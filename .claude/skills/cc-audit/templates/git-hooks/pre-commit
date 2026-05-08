@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+# pre-commit — secret scan via guard. Aborts on findings.
+set -u
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+GUARD="$SCRIPT_DIR/guards/secret-scan.sh"
+if [ ! -x "$GUARD" ]; then
+  echo "pre-commit: secret-scan.sh missing or not executable: $GUARD" >&2
+  exit 0
+fi
+if ! bash "$GUARD" </dev/null; then
+  echo "pre-commit: secret-scan blocked the commit. fix or use a redact tool, do NOT --no-verify." >&2
+  exit 1
+fi

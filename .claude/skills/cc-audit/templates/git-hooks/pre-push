@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# pre-push — lint + test if package.json is present. Skip on no remote / detached.
+set -u
+ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+[ -n "$ROOT" ] || exit 0
+
+if [ -f "$ROOT/package.json" ]; then
+  if command -v pnpm >/dev/null 2>&1 && [ -f "$ROOT/pnpm-lock.yaml" ]; then
+    PM=pnpm
+  elif command -v npm >/dev/null 2>&1; then
+    PM=npm
+  else
+    exit 0
+  fi
+  if grep -q '"lint"' "$ROOT/package.json" 2>/dev/null; then
+    (cd "$ROOT" && $PM run -s lint) || { echo "pre-push: lint failed" >&2; exit 1; }
+  fi
+  if grep -q '"test"' "$ROOT/package.json" 2>/dev/null; then
+    (cd "$ROOT" && $PM test --silent) || { echo "pre-push: tests failed" >&2; exit 1; }
+  fi
+fi
+exit 0

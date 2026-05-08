@@ -1,0 +1,108 @@
+{
+  "plansDirectory": "./.claude/plans",
+  "attribution": {
+    "commit": "Co-Authored-By: Claude <noreply@anthropic.com>",
+    "pr": "Generated with [Claude Code](https://claude.ai/code)"
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash ${CLAUDE_PROJECT_DIR}/.claude/scripts/statusline.sh",
+    "padding": 0
+  },
+  "strictKnownMarketplaces": true,
+  "permissions": {
+    "defaultMode": "default",
+    "allow": [
+      "Bash(git status)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(ls *)",
+      "Bash(cat *)",
+      "Bash(grep *)",
+      "Bash(rg *)",
+      "Read",
+      "Edit",
+      "Write"
+    ],
+    "ask": [
+      "Bash(git push *)",
+      "Bash(git rebase *)",
+      "Bash(npm publish *)",
+      "Bash(docker push *)",
+      "Bash(terraform apply *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(rm -rf /)",
+      "Bash(sudo *)",
+      "Bash(curl * | sh)",
+      "Bash(wget * | sh)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git reset --hard *)",
+      "Bash(terraform destroy *)",
+      "Bash(terraform apply -auto-approve *)",
+      "Bash(cdk destroy *)",
+      "Bash(pulumi destroy *)",
+      "Bash(kubectl delete *)",
+      "Bash(helm delete *)",
+      "Bash(helm uninstall *)",
+      "Bash(aws * delete*)",
+      "Bash(aws s3 rb *)",
+      "Bash(gcloud * delete *)",
+      "Bash(az * delete *)",
+      "Read(./.env)",
+      "Read(./.env.*)",
+      "Read(~/.aws/credentials)",
+      "Read(~/.aws/config)",
+      "Read(~/.ssh/**)",
+      "Read(./**/*.pem)",
+      "Read(./**/*.key)",
+      "Read(./secrets/**)",
+      "Edit(./.claude/settings.json)",
+      "Write(./.claude/settings.json)",
+      "Edit(./.claude/scripts/hooks.py)",
+      "Write(./.claude/scripts/hooks.py)"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py pre-tool-use no-verify-deny",
+            "timeout": 2000
+          },
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py pre-tool-use check-iac-plan",
+            "timeout": 2000
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py pre-tool-use check-secrets",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py stop pii-mask",
+            "timeout": 1000
+          }
+        ]
+      }
+    ]
+  }
+}
