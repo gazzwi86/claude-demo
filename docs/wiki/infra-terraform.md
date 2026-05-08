@@ -1,35 +1,67 @@
 # infra-terraform
 
-_(empty — run /anatomy)_
+_Area: `infra/terraform/` — validate-only Terraform modules_
 
-<!-- stale: infra/terraform/providers.tf --> <!-- at: 2026-05-08T01:48:37.118428+00:00 -->
+_Last full refresh: 2026-05-08T14:00:00Z_
 
-<!-- stale: infra/terraform/variables.tf --> <!-- at: 2026-05-08T01:48:41.760551+00:00 -->
+## infra/terraform/main.tf
 
-<!-- stale: infra/terraform/main.tf --> <!-- at: 2026-05-08T01:48:45.130300+00:00 -->
+**Description:** Root Terraform configuration. Calls the four child modules (`s3-loops`, `dynamodb`, `iam`, `cloudfront`) and passes outputs between them. CloudFront is toggled off by default via `var.enable_cloudfront`. Validate-only in CI — never `apply`'d against real AWS.
 
-<!-- stale: infra/terraform/outputs.tf --> <!-- at: 2026-05-08T01:48:47.434044+00:00 -->
+---
 
-<!-- stale: infra/terraform/modules/s3-loops/variables.tf --> <!-- at: 2026-05-08T01:48:49.520771+00:00 -->
+## infra/terraform/providers.tf
 
-<!-- stale: infra/terraform/modules/s3-loops/main.tf --> <!-- at: 2026-05-08T01:48:52.446625+00:00 -->
+**Description:** AWS provider block. Sets `region = var.aws_region`. Uses no backend — state stays local for this validate-only setup.
 
-<!-- stale: infra/terraform/modules/s3-loops/outputs.tf --> <!-- at: 2026-05-08T01:48:55.086934+00:00 -->
+---
 
-<!-- stale: infra/terraform/modules/dynamodb/variables.tf --> <!-- at: 2026-05-08T01:48:56.907695+00:00 -->
+## infra/terraform/variables.tf
 
-<!-- stale: infra/terraform/modules/dynamodb/main.tf --> <!-- at: 2026-05-08T01:48:59.656001+00:00 -->
+**Description:** Root input variables: `aws_region` (default `ap-southeast-2`), `environment` (default `dev`), `project_name` (default `looper`), `enable_cloudfront` (default `false`).
 
-<!-- stale: infra/terraform/modules/dynamodb/outputs.tf --> <!-- at: 2026-05-08T01:49:29.757198+00:00 -->
+---
 
-<!-- stale: infra/terraform/modules/iam/variables.tf --> <!-- at: 2026-05-08T01:49:32.964460+00:00 -->
+## infra/terraform/outputs.tf
 
-<!-- stale: infra/terraform/modules/iam/main.tf --> <!-- at: 2026-05-08T01:49:35.061431+00:00 -->
+**Description:** Aggregates and exposes child module outputs: S3 bucket name and ARN, DynamoDB table names, IAM role ARN, and CloudFront distribution ID (only when enabled).
 
-<!-- stale: infra/terraform/modules/iam/outputs.tf --> <!-- at: 2026-05-08T01:49:37.601895+00:00 -->
+---
 
-<!-- stale: infra/terraform/modules/cloudfront/variables.tf --> <!-- at: 2026-05-08T01:49:39.771016+00:00 -->
+## infra/terraform/modules/s3-loops/
 
-<!-- stale: infra/terraform/modules/cloudfront/main.tf --> <!-- at: 2026-05-08T01:49:42.140447+00:00 -->
+**Description:** S3 module. Creates the audio-loops bucket with versioning disabled, a CORS policy permitting `PUT` and `GET` from the configured origins, and a lifecycle rule to abort incomplete multipart uploads after 7 days.
 
-<!-- stale: infra/terraform/modules/cloudfront/outputs.tf --> <!-- at: 2026-05-08T01:49:44.292949+00:00 -->
+- `main.tf` — bucket + CORS configuration + lifecycle rule resources
+- `variables.tf` — `bucket_name`, `environment`, `allowed_origins` (list)
+- `outputs.tf` — `bucket_name`, `bucket_arn`
+
+---
+
+## infra/terraform/modules/dynamodb/
+
+**Description:** DynamoDB module. Creates three tables (users, loops, sessions) with PAY_PER_REQUEST billing. The users table has a GSI on `gsi_email_pk` for email lookups. The loops table has a GSI on `gsi_public_pk` for querying public loops across all owners.
+
+- `main.tf` — three `aws_dynamodb_table` resources with GSI definitions
+- `variables.tf` — `environment`, table name prefix variables
+- `outputs.tf` — table names and ARNs for IAM scoping
+
+---
+
+## infra/terraform/modules/iam/
+
+**Description:** IAM module. Creates an ECS task execution role with least-privilege inline policies scoped to the specific S3 bucket and DynamoDB table ARNs from the other modules.
+
+- `main.tf` — `aws_iam_role`, `aws_iam_policy`, `aws_iam_role_policy_attachment`
+- `variables.tf` — `s3_bucket_arn`, `dynamodb_table_arns`, `environment`
+- `outputs.tf` — `role_arn`
+
+---
+
+## infra/terraform/modules/cloudfront/
+
+**Description:** Optional CloudFront distribution fronting the S3 bucket and API origin. Off by default. Configures HTTPS, custom cache behaviours per path pattern (`/api/*` bypasses cache; `/samples/*` caches aggressively), and geo-restriction controls.
+
+- `main.tf` — `aws_cloudfront_distribution` with origin groups and cache behaviours
+- `variables.tf` — `s3_bucket_name`, `api_origin_domain`, `environment`
+- `outputs.tf` — `distribution_id`, `domain_name`

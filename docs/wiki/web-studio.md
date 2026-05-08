@@ -1,17 +1,45 @@
 # web-studio
 
-_(empty — run /anatomy)_
+_Area: `apps/web/components/studio/` — domain UI components_
 
-<!-- stale: apps/web/components/studio/Meter.tsx --> <!-- at: 2026-05-08T00:04:46.268563+00:00 -->
+_Last full refresh: 2026-05-08T14:00:00Z_
 
-<!-- stale: apps/web/components/studio/TransportBar.tsx --> <!-- at: 2026-05-08T00:04:52.631188+00:00 -->
+## apps/web/components/studio/TransportBar.tsx
 
-<!-- stale: apps/web/components/studio/Pad.tsx --> <!-- at: 2026-05-08T00:05:08.825554+00:00 -->
+**Description:** Global transport controls bar at the top of the studio. Provides play/stop-all, BPM display, and master record trigger. Calls `engine.stopAll()` and `engine.resume()` via `useAudioEngine`. All controls have `aria-label` and visible focus rings.
 
-<!-- stale: apps/web/components/studio/PadGrid.tsx --> <!-- at: 2026-05-08T00:05:14.306491+00:00 -->
+---
 
-<!-- stale: apps/web/components/studio/EffectsRack.tsx --> <!-- at: 2026-05-08T00:05:23.532861+00:00 -->
+## apps/web/components/studio/PadGrid.tsx
 
-<!-- stale: apps/web/components/studio/LoopRecorder.tsx --> <!-- at: 2026-05-08T00:05:34.307022+00:00 -->
+**Description:** Renders the 4×4 grid of 16 `Pad` components. Iterates pad indices 0–15, calls `usePad(engine, index)` for each, and passes state + action callbacks to `Pad`. Manages the `selectedPad` state for library load targeting.
 
-<!-- stale: apps/web/components/studio/LibraryDrawer.tsx --> <!-- at: 2026-05-08T00:05:44.270372+00:00 -->
+---
+
+## apps/web/components/studio/Pad.tsx
+
+**Description:** Single pad cell. Shows loop name when loaded, or muted hint text when empty. Background colour and glow effect communicate state: empty (dark), loaded (dim), playing (lit neon-green), muted (grey). Volume, mute, and solo controls are exposed inline via small buttons. Note: empty-pad hint text must not use `/50` opacity class — contrast must meet WCAG AA.
+
+---
+
+## apps/web/components/studio/EffectsRack.tsx
+
+**Description:** Master effects panel. Exposes `Slider` controls for master volume, delay time + feedback + mix, reverb mix, and lowpass filter cutoff + Q. Each slider change calls `engine.setEffects()` with the updated partial. Reads `DEFAULT_EFFECTS` for initial values.
+
+---
+
+## apps/web/components/studio/LoopRecorder.tsx
+
+**Description:** Record-from-mic UI. Walks through the arm → record → stop flow with a live `Meter` showing input level. After recording, previews the blob on a pad before committing. Uses `useRecorder` hook for state management.
+
+---
+
+## apps/web/components/studio/LibraryDrawer.tsx
+
+**Description:** Slide-in panel listing available loops: bundled synth samples (always available) and user-uploaded loops fetched from `/loops` when authenticated. Supports tap-to-load onto the selected pad and drag-to-pad. Calls `engine.loadPadBuffer()` for synth samples, `engine.loadPad(url)` for API loops.
+
+---
+
+## apps/web/components/studio/Meter.tsx
+
+**Description:** Animated RMS level meter. Polls a provided `getRms()` callback in a `requestAnimationFrame` loop and renders a single coloured bar proportional to level. Used in the TransportBar (master level) and LoopRecorder (input level).

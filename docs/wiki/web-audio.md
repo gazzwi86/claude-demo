@@ -1,19 +1,148 @@
 # web-audio
 
-_(empty — run /anatomy)_
+_Area: `apps/web/lib/audio/` — Web Audio API engine_
 
-<!-- stale: apps/web/lib/audio/effects.ts --> <!-- at: 2026-05-07T23:38:42.336795+00:00 -->
+_Last full refresh: 2026-05-08T14:00:00Z_
 
-<!-- stale: apps/web/lib/audio/impulseResponse.ts --> <!-- at: 2026-05-07T23:38:46.431916+00:00 -->
+## apps/web/lib/audio/engine.ts
 
-<!-- stale: apps/web/lib/audio/padNode.ts --> <!-- at: 2026-05-07T23:38:58.416138+00:00 -->
+**Description:** Owns the singleton `AudioContext`, master `EffectsBus`, and a `Map<number, PadNode>` keyed by pad index. The React layer wraps this behind `useAudioEngine`; the engine is pure imperative logic with no React dependency and is safe to test outside jsdom.
 
-<!-- stale: apps/web/lib/audio/buffers.ts --> <!-- at: 2026-05-07T23:39:01.905358+00:00 -->
+### Exports
 
-<!-- stale: apps/web/lib/audio/recorder.ts --> <!-- at: 2026-05-07T23:39:18.185110+00:00 -->
+- **`class AudioEngine`** — top-level audio controller
+- **`interface PadState`** — per-pad metadata: loopId, loopUrl, volume, mute, solo, playbackRate, filterCutoff, loaded, playing
+- **`DEFAULT_PAD: PadState`** — factory default values for a blank pad
 
-<!-- stale: apps/web/lib/audio/engine.ts --> <!-- at: 2026-05-07T23:39:37.671177+00:00 -->
+### Methods (AudioEngine)
 
-<!-- stale: apps/web/lib/audio/__tests__/effects.test.ts --> <!-- at: 2026-05-07T23:40:25.174759+00:00 -->
+- **`constructor(padCount, ctx?)`** — creates AudioContext + EffectsBus + blank padState array
+- **`resume()`** — resumes suspended AudioContext (call on first user gesture; required by browser autoplay policy)
+- **`getPadState(index)`** — returns a shallow copy of one pad's metadata
+- **`getEffects()`** — returns a copy of current master effects params
+- **`loadPad(index, loopId, url)`** — fetches + decodes audio via `loadAudioBuffer`, then calls `loadPadBuffer`
+- **`loadPadBuffer(index, loopId, url, buffer)`** — loads a pre-decoded AudioBuffer onto a pad; used by synth samples and recorder preview
+- **`unloadPad(index)`** — destroys PadNode, resets pad state to blank
+- **`togglePad(index)`** — starts or stops a pad's looping playback
+- **`stopAll()`** — stops all playing pads
+- **`setPadVolume / setPadMuted / setPadSolo / setPadRate / setPadCutoff`** — individual pad parameter setters; all update state and apply to the live PadNode
+- **`setEffects(p)`** — merges partial EffectsParams and forwards to EffectsBus
+- **`getMasterRms()`** — reads AnalyserNode for RMS level; called by UI meter in rAF loop
+- **`destroy()`** — stops all pads, closes AudioContext
 
-<!-- stale: apps/web/lib/audio/synth.ts --> <!-- at: 2026-05-08T00:06:27.535537+00:00 -->
+### Depends on
+
+- `./effects.js` (EffectsBus, DEFAULT_EFFECTS, EffectsParams)
+- `./padNode.js` (PadNode)
+- `./buffers.js` (loadAudioBuffer)
+
+---
+
+## apps/web/lib/audio/effects.ts
+
+**Description:** Master effects bus — owns the dry/delay/reverb processing chain wired between the bus input and the AudioContext destination. All parameter mutations use `setTargetAtTime` for click-free ramping; direct `.value` assignment is intentionally avoided.
+
+### Exports
+
+- **`class EffectsBus`** — the master audio effects graph
+- **`interface EffectsParams`** — masterVolume, delayMs, delayFeedback, delayMix, reverbMix, filterCutoff, filterQ
+- **`DEFAULT_EFFECTS: EffectsParams`** — defaults: no delay, no reverb, filter open to 20 kHz
+
+### Methods (EffectsBus)
+
+- **`constructor(ctx)`** — creates and wires the full node graph: input → preFilter → [dry, delay, reverb] → master → analyser → destination
+- **`setParams(p)`** — applies partial EffectsParams using `setTargetAtTime` on all affected audio params
+- **`getRms()`** — reads AnalyserNode time-domain data, returns RMS level (0–1) for metering
+- **`destroy()`** — disconnects master and input nodes
+
+### Depends on
+
+- `./impulseResponse.js` (generateImpulseResponse)
+
+---
+
+## apps/web/lib/audio/padNode.ts
+
+**Description:** One pad in the looper grid. Wraps an `AudioBufferSourceNode` + `GainNode` + per-pad lowpass `BiquadFilterNode`. Created and destroyed imperatively by `AudioEngine` — never recreated by React renders. Source nodes are nulled on stop so the next `start()` creates a fresh source (AudioBufferSourceNode is one-shot by spec).
+
+### Exports
+
+- **`class PadNode`** — imperative audio node wrapper
+- **`interface PadOptions`** — loop, playbackRate, volume, filterCutoff, destination
+
+### Methods (PadNode)
+
+- **`constructor(ctx, buffer, opts)`** — creates gain + filter nodes, wires to destination
+- **`start(opts?)`** — starts playback if not already playing; creates source on demand
+- **`stop()`** — stops and nulls source node
+- **`setRate(rate)`** — smooth playback rate change via setTargetAtTime
+- **`setVolume(volume)`** — smooth gain change, respects muted state
+- **`setMuted(muted)`** — fades gain to 0 or restores to current volume
+- **`setFilterCutoff(hz)`** — smooth filter frequency change
+- **`isPlaying()`** — returns current playing state
+- **`destroy()`** — stops and disconnects all nodes
+
+---
+
+## apps/web/lib/audio/recorder.ts
+
+**Description:** Mic recorder wrapping `getUserMedia` + `MediaRecorder`. State machine: idle → armed → recording → stopping. Emits a `RecordResult` blob on stop. Level monitoring runs in a rAF loop while armed or recording.
+
+### Exports
+
+- **`class LoopRecorderEngine`** — stateful recorder
+- **`type RecorderState`** — "idle" | "armed" | "recording" | "stopping"
+- **`interface RecordResult`** — blob, durationMs, sampleRate, mimeType
+- **`interface RecorderEvents`** — onStateChange, onLevel, onError callbacks
+
+### Methods (LoopRecorderEngine)
+
+- **`arm()`** — calls getUserMedia, creates level-monitoring analyser, transitions to "armed"
+- **`start()`** — creates MediaRecorder, begins recording, transitions to "recording"
+- **`stop()`** — stops MediaRecorder, returns Promise\<RecordResult\> resolved on onstop
+- **`disarm()`** — releases mic stream, transitions to "idle"
+- **`getState()`** — returns current RecorderState
+
+---
+
+## apps/web/lib/audio/buffers.ts
+
+**Description:** Audio buffer cache and decode helpers. Caches decoded `AudioBuffer` objects by URL in a module-level Map so loading the same sample twice returns the cached promise without re-fetching.
+
+### Exports
+
+- **`loadAudioBuffer(ctx, url)`** — fetches + decodes audio, caches result by URL
+- **`clearAudioCache()`** — empties the URL→Promise\<AudioBuffer\> cache
+
+---
+
+## apps/web/lib/audio/synth.ts
+
+**Description:** Synthesises six tiny `AudioBuffer` objects in-process so the demo ships fully playable samples without any audio files. All samples are loop-friendly with a 5 ms zero-crossing fade-out. Samples: kick (sine sweep), snare (noise+tone), hat (noise tick), bass (saw bassline, C minor), pad (chord), blip (FM blip).
+
+### Exports
+
+- **`renderSynthSample(ctx, id)`** — renders one named sample into an AudioBuffer
+- **`SYNTH_SAMPLES: SynthSample[]`** — metadata array: id, name, bpm, durationMs
+- **`type SynthSampleId`** — "kick" | "snare" | "hat" | "bass" | "pad" | "blip"
+- **`interface SynthSample`** — id, name, bpm, durationMs
+
+---
+
+## apps/web/lib/audio/impulseResponse.ts
+
+**Description:** Generates a synthetic stereo impulse response for the convolver reverb — exponentially decaying noise shaped like a small hall. Avoids shipping a real IR file while still producing a usable reverb effect.
+
+### Exports
+
+- **`generateImpulseResponse(ctx, durationSeconds, decay)`** — returns a stereo AudioBuffer with per-sample `(random * 2 - 1) * (1-t)^decay` envelope
+
+---
+
+## apps/web/lib/audio/__tests__/effects.test.ts
+
+**Description:** Vitest sanity tests for `EffectsParams` defaults — verifies that `DEFAULT_EFFECTS` has the correct shape and values.
+
+### Depends on
+
+- `../effects.js`

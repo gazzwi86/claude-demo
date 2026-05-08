@@ -1,15 +1,51 @@
 # web-pages
 
-_(empty — run /anatomy)_
+_Area: `apps/web/app/` — Next.js App Router pages_
 
-<!-- stale: apps/web/app/(auth)/login/page.tsx --> <!-- at: 2026-05-08T00:03:08.100906+00:00 -->
+_Last full refresh: 2026-05-08T14:00:00Z_
 
-<!-- stale: apps/web/app/(auth)/signup/page.tsx --> <!-- at: 2026-05-08T00:03:17.061300+00:00 -->
+## apps/web/app/layout.tsx
 
-<!-- stale: apps/web/app/(app)/layout.tsx --> <!-- at: 2026-05-08T00:03:22.462635+00:00 -->
+**Description:** Root Next.js layout. Sets `<html lang="en">`, imports `globals.css` (Tailwind 4 theme tokens and dark background), and renders `{children}`. No auth logic — gating is handled at route-group level.
 
-<!-- stale: apps/web/app/(app)/dashboard/page.tsx --> <!-- at: 2026-05-08T00:03:33.514041+00:00 -->
+---
 
-<!-- stale: apps/web/app/(app)/account/page.tsx --> <!-- at: 2026-05-08T00:03:39.144106+00:00 -->
+## apps/web/app/page.tsx
 
-<!-- stale: apps/web/app/(app)/studio/page.tsx --> <!-- at: 2026-05-08T00:03:44.116156+00:00 -->
+**Description:** Public home page at `/`. Displays the app name and tagline with links to `/login` and `/signup`. Unauthenticated landing page; accessible without a session.
+
+---
+
+## apps/web/app/(auth)/login/page.tsx
+
+**Description:** Login form. Validates email and password with `LoginSchema` client-side (`noValidate` on the form so Zod runs before browser validation). On success, calls `/auth/login`, sets cookie, and navigates to `/studio`.
+
+---
+
+## apps/web/app/(auth)/signup/page.tsx
+
+**Description:** Signup form. Validates with `SignupSchema` (email, password, displayName). On success, calls `/auth/signup` and navigates to `/studio`.
+
+---
+
+## apps/web/app/(app)/layout.tsx
+
+**Description:** Layout for all authenticated routes in the `(app)` route group. Calls `getSession()` on every render; redirects to `/login` if no active session. Renders shared navigation header above `{children}`.
+
+---
+
+## apps/web/app/(app)/studio/page.tsx
+
+**Description:** Main looper studio page. Composes `TransportBar`, `PadGrid`, `EffectsRack`, `LoopRecorder`, and `LibraryDrawer`. Initialises `useAudioEngine` and passes the engine down to each sub-component.
+
+---
+
+## apps/web/app/(app)/dashboard/page.tsx
+
+**Description:** Loop library page. Fetches the user's loops from `/loops` and renders a list with metadata (name, duration, BPM) and upload status. Links to the studio for loading a loop onto a pad.
+
+---
+
+## apps/web/app/(app)/account/page.tsx
+
+**Description:** Account settings page. Displays current user email and displayName. Contains a logout button that calls `auth.logout()` and redirects to `/`.
