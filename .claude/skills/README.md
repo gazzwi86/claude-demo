@@ -6,9 +6,15 @@ itself when its trigger conditions match.
 
 ## Available skills
 
-| Skill | Purpose |
-|---|---|
-| `20-questions/` | Asks up to 20 yes/no questions to narrow a topic. Demo skill — kept small so the structure is easy to read. |
+| Skill | Trigger phrases | Purpose |
+|---|---|---|
+| `20-questions/` | `/20-questions` | Asks up to 20 yes/no questions to narrow a topic. Demo skill — kept small so the structure is easy to read. |
+| `looper-add-effect/` | "add an effect", "add reverb/delay/filter", "add a new audio node" | Step-by-step guide for extending the Web Audio effects chain: types → engine → UI → aria. |
+| `write-vitest-test/` | "write tests", "write unit tests", "add tests for X" | Guide for writing Vitest tests for API routes, services, and shared schemas. Uses `app.inject()` for routes. |
+| `write-rtl-test/` | "write component test", "test this component", "add RTL test" | Guide for writing React Testing Library tests for `apps/web` components. Covers audio API mocking and accessible queries. |
+| `write-playwright-test/` | "write E2E test", "add playwright test", "write an integration test for X" | Guide for writing Playwright specs. Covers behavioural (network-stubbed) and live (dev server) patterns. |
+| `write-api-route/` | "add endpoint", "create route", "implement API for X", "add a new API route" | Full stack guide: shared schema → route → service → DB → test. Enforces HTTP status conventions. |
+| `write-component/` | "create a component", "add UI component", "build a \<Name\> component" | Guide for scaffolding a React component: placement, props, accessibility, audio hooks, Tailwind tokens, RTL test. |
 
 ## Skill anatomy
 
