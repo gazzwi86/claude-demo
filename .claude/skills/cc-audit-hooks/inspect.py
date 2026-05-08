@@ -90,6 +90,45 @@ def inspect(repo: Path) -> dict:
             "n/a"
         ))
 
+    # Detect monolithic hooks.py — encourage dispatcher + modules/ split.
+    hooks_py = repo / ".claude" / "scripts" / "hooks.py"
+    modules_dir = repo / ".claude" / "scripts" / "modules"
+    if hooks_py.exists():
+        try:
+            line_count = sum(1 for _ in hooks_py.read_text(encoding="utf-8").splitlines())
+        except OSError:
+            line_count = 0
+        if line_count > 150 and not modules_dir.is_dir():
+            findings.append(finding(
+                "hooks.monolithic", "medium",
+                f"hooks.py is {line_count} lines with no modules/ split",
+                f".claude/scripts/hooks.py: {line_count} lines; .claude/scripts/modules/ does not exist",
+                {"kind": "refactor", "patch": "extract handlers into .claude/scripts/modules/<concern>.py; keep hooks.py as a thin dispatcher (dispatch tables + main)"},
+                "A thin dispatcher + per-concern modules makes individual handlers reviewable, testable, and replaceable; cc-audit ships this layout as the template.",
+                "Inline modules back into hooks.py."
+            ))
+
+    # Detect Stop hook re-entry hazard: prompt-type Stop hook with no
+    # corresponding command-type guard reading stop_hook_active.
+    stop_cfgs = hooks.get("Stop") or hooks.get("stop") or []
+    has_prompt_stop = False
+    has_command_stop = False
+    for cfg in stop_cfgs:
+        for h in cfg.get("hooks") or []:
+            if h.get("type") == "prompt":
+                has_prompt_stop = True
+            elif h.get("type") == "command":
+                has_command_stop = True
+    if has_prompt_stop and not has_command_stop:
+        findings.append(finding(
+            "hooks.stop-prompt-loop", "high",
+            "Stop hook of type prompt with no command-type guard — re-entry loop hazard",
+            ".claude/settings.json: Stop hooks contain a prompt-type entry but no command-type entry that can read stop_hook_active",
+            {"kind": "migrate", "patch": "convert prompt-type Stop hook to a command-type handler (e.g. modules/stop.py:completion_review) that exits silently when payload['stop_hook_active'] is true"},
+            "Prompt-type Stop hooks fire on every Stop event, including the Stop caused by the previous prompt — this produces an infinite review loop.",
+            "Restore the prompt-type entry."
+        ))
+
     if expensive_count > 0:
         findings.append(finding(
             "hooks.expensive-types", "medium",
