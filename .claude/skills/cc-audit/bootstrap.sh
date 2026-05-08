@@ -236,11 +236,14 @@ fi
 # Cluster: rules
 if [[ -z "$CLUSTER" || "$CLUSTER" == "rules" ]]; then
   say "cluster: rules"
-  for r in code-style testing security; do
+  for r in code-style testing security markdown; do
     if [[ ! -f "$TARGET/.claude/rules/${r}.md" ]]; then
       stage_file "$TEMPLATES/rules/${r}.md" ".claude/rules/${r}.md"
     fi
   done
+  if [[ ! -f "$TARGET/.claude/rules/README.md" ]]; then
+    stage_file "$TEMPLATES/rules/README.md" ".claude/rules/README.md"
+  fi
 fi
 
 # Cluster: CLAUDE.md skeleton (only if missing)
