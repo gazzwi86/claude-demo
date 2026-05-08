@@ -225,6 +225,9 @@ if [[ -z "$CLUSTER" || "$CLUSTER" == "settings" ]]; then
   stage_file "$TEMPLATES/settings.baseline.json" ".claude/settings.json"
   stage_file "$TEMPLATES/hooks.py" ".claude/scripts/hooks.py"
   stage_file "$TEMPLATES/statusline.sh" ".claude/scripts/statusline.sh"
+  for m in __init__ common secrets security pii lifecycle stop; do
+    stage_file "$TEMPLATES/modules/${m}.py" ".claude/scripts/modules/${m}.py"
+  done
   for g in secret-scan pii-mask iac-deny no-verify-deny; do
     stage_file "$TEMPLATES/guards/${g}.sh" ".claude/scripts/guards/${g}.sh"
   done
