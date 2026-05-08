@@ -423,11 +423,16 @@ Wired via `git config core.hooksPath .claude/scripts/git-hooks` (set by `/setup`
 
 ```bash
 # 1. Find staged .ts/.tsx/.js/.mjs files matching apps/ or packages/
-# 2. Run /anatomy refresh on them (incremental wiki update)
-# 3. git add ANATOMY.md docs/wiki/ so the wiki diff lands in this commit
+# 2. [blocking]  Complexity gate: run eslint with eslint-plugin-sonarjs +
+#                built-in `complexity` rule on staged apps/web files.
+#                Cyclomatic ≤ 10, cognitive ≤ 15. Fails commit on violation.
+# 3. Run /anatomy refresh on them (incremental wiki update)
+# 4. git add ANATOMY.md docs/wiki/ so the wiki diff lands in this commit
 ```
 
 No `/simplify` — removed because it modified staged files and caused a re-run loop on the next commit.
+
+The complexity gate runs **pre-commit only**, not on every Edit/Write. The agent stays unblocked during writes; drift gets caught at commit time. Config: `apps/web/eslint.complexity.config.js`. Skipped with a notice if `eslint-plugin-sonarjs` isn't installed (run `pnpm install`).
 
 ### `pre-push`
 
@@ -462,9 +467,17 @@ bash .claude/tests/run.sh
 
 ---
 
-## 14. `/cc-audit` — User-Level Config Audit
+## 14. `/cc-audit` and `/cc-scaffold` — Config Audit + Workflow Scaffolder
 
-Installed once at `~/.claude/skills/cc-audit/`, not in this repo. Audits *any* repo's `.claude/` against a strict baseline.
+Both skills live in this repo at `.claude/skills/cc-audit/` and
+`.claude/skills/cc-scaffold/`. The repo is the source of truth for the
+patterns and the demo of them in action; future plugin packaging is a
+separate concern.
+
+### `/cc-audit` — structural baseline
+
+Audits any repo's `.claude/` against a strict baseline (settings shape,
+hook layout, security guards, rules, monorepo signals).
 
 ```text
 > /cc-audit              # plan only
@@ -472,9 +485,98 @@ Installed once at `~/.claude/skills/cc-audit/`, not in this repo. Audits *any* r
 > /cc-audit --apply      # scaffold with confirmation
 ```
 
-Running it against this repo will surface real findings: `Edit/Write(.claude/settings.json)` deny missing, gitleaks not installed, some rules could have tighter path globs. All addressable.
-
 Fan-out: 9 parallel sub-skills (`cc-audit-{settings,permissions,security,claude-md,skills,hooks,git-hooks,enterprise,monorepo}`) emit structured Finding JSON, which the orchestrator merges and runs through a 6-persona council review before emitting a plan-mode diff bundle.
+
+Recent additions: a hook-layout drift detector (flags monolithic
+`hooks.py` with no `modules/` split), a Stop-hook re-entry-loop
+detector (flags `prompt`-type Stop hooks that don't honor
+`stop_hook_active`), a complexity-gate detector, and 5 workflow-surface
+detectors that route to `/cc-scaffold` for remediation.
+
+### `/cc-scaffold` — research-driven workflow surface
+
+Companion skill. Where `cc-audit` enforces structure, `cc-scaffold`
+adds the opinionated workflow surface this repo demonstrates:
+project-memory, `/anatomy` + `docs/wiki/`, `write-*` skills, `/open-pr`,
+`/check-health`, named subagents, and the complexity / maintainability
+gate.
+
+```text
+> /cc-scaffold                              # plan only, all clusters
+> /cc-scaffold --cluster=memory             # only project-memory
+> /cc-scaffold --cluster=complexity --apply # research stack, wire gate
+```
+
+Templates ship stack-agnostic — every concrete tool choice (eslint
+plugin, test runner, schema lib, complexity rule) is researched at
+apply time via `context7` + `WebSearch` in parallel, so the scaffold
+picks current-best rather than shipping stale plugin names. See
+`.claude/memory/decision_research_driven_scaffold.md` for the why.
+
+### Smoke tests you can run yourself
+
+These are the things to try after first install — each one validates a
+different layer of the harness end-to-end.
+
+**Smoke test A — complexity gate blocks a bad commit**
+
+```bash
+cd apps/web
+cat > /tmp/messy.ts <<'EOF'
+export function tangled(n: number, x?: string, y?: string, z?: string) {
+  if (n > 0) { if (x) { if (y) { if (z) {
+    if (n === 1) return "a"; if (n === 2) return "b";
+    if (n === 3) return "c"; if (n === 4) return "d";
+    if (n === 5) return "e"; if (n === 6) return "f";
+    if (n === 7) return "g"; if (n === 8) return "h";
+  } } } }
+  return "";
+}
+EOF
+mv /tmp/messy.ts components/Messy.ts
+git add components/Messy.ts
+git commit -m "test"   # → expect: pre-commit FAILS with complexity violation
+git restore --staged components/Messy.ts && rm components/Messy.ts
+```
+
+**Smoke test B — `/cc-audit` self-audit**
+
+```text
+> /cc-audit
+```
+
+Expect: a plan-mode bundle. Real findings on this repo (intentionally
+left so the audit has something to surface). The 5 workflow-surface
+detectors should emit zero findings (this repo has the patterns).
+
+**Smoke test C — `/cc-scaffold` against a throwaway**
+
+```bash
+cd /tmp && mkdir scaffold-test && cd scaffold-test
+git init -q
+echo '{"name":"toy","scripts":{"test":"node --test"}}' > package.json
+```
+
+Then in Claude Code, `cd` into `/tmp/scaffold-test` and run:
+
+```text
+> /cc-scaffold --dry-run
+```
+
+Expect: the agent detects the stack (Node, no framework), researches
+current best-practice, and proposes file additions for each cluster.
+It should not write anything in `--dry-run`.
+
+**Smoke test D — `bootstrap.sh` dry-run**
+
+```bash
+cd /tmp/scaffold-test
+bash /path/to/claude-demo/.claude/skills/cc-audit/bootstrap.sh --dry-run --cluster=settings .
+```
+
+Expect: a plan listing every file that would be staged, including the
+`modules/` skeleton (`__init__.py`, `common.py`, `secrets.py`,
+`security.py`, `pii.py`, `lifecycle.py`, `stop.py`).
 
 ---
 
@@ -520,10 +622,22 @@ Add a stereo chorus effect with rate (Hz) and depth parameters.
 
 The skill guides you through the complete change: `effects.ts` → `engine.ts` → `EffectsRack.tsx` → `@looper/shared` types.
 
-### Lab 3 — Run `/cc-audit`
+### Lab 3 — Audit + scaffold tour
 
-```text
-/cc-audit
-```
+Run the four smoke tests in Section 14 in order:
 
-Read the findings. They're real — this repo intentionally leaves some things for `cc-audit` to surface, because finding and explaining real issues is more instructive than a clean bill of health.
+1. **Complexity gate (A)** — write a deliberately complex function in
+   `apps/web/components/`, try to commit it, watch the pre-commit hook
+   block. Roll back and refactor if you want; otherwise discard.
+2. **`/cc-audit` (B)** — invoke against this repo. Read the findings.
+   They're real; the repo intentionally leaves some things for
+   `cc-audit` to surface.
+3. **`/cc-scaffold --dry-run` (C)** — invoke against an empty
+   `/tmp/scaffold-test` repo. Watch the agent detect the stack,
+   dispatch context7 + WebSearch in parallel, reconcile, and propose.
+4. **`bootstrap.sh --dry-run` (D)** — verify the templates stage the
+   modular hooks layout including every module skeleton.
+
+The four together exercise structural audit, research-driven
+scaffolding, the bootstrap pipeline, and the maintainability gate —
+the four layers of the harness this repo demonstrates.
