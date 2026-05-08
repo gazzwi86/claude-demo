@@ -36,6 +36,32 @@ def finding(fid, severity, title, evidence, remediation, rationale, rollback="")
     }
 
 
+def _skill_files(root: Path, sub: str):
+    """Yield only the canonical artifact files under .claude/{skills,agents,commands}/.
+
+    - skills/<name>/SKILL.md is the only skill file; README.md, council.md,
+      best-practises.md, and anything under templates/ are supporting docs.
+    - agents/<name>.md and commands/<name>.md are direct children, never nested.
+    - README.md at any level is documentation, never an artifact.
+    """
+    if sub == "skills":
+        for skill_dir in root.iterdir():
+            if not skill_dir.is_dir():
+                continue
+            if "node_modules" in skill_dir.parts:
+                continue
+            skill_md = skill_dir / "SKILL.md"
+            if skill_md.exists():
+                yield skill_md
+        return
+    for p in root.iterdir():
+        if not p.is_file() or p.suffix != ".md":
+            continue
+        if p.name == "README.md":
+            continue
+        yield p
+
+
 def inspect_one(p: Path, repo: Path, kind: str, findings: list):
     try:
         text = p.read_text(encoding="utf-8")
@@ -189,9 +215,7 @@ def inspect(repo: Path) -> dict:
         if not d.is_dir():
             skipped.append({"id": f"skills.no-{sub}", "reason": f".claude/{sub}/ absent"})
             continue
-        for p in d.rglob("*.md"):
-            if "node_modules" in p.parts:
-                continue
+        for p in _skill_files(d, sub):
             inspect_one(p, repo, kind, findings)
 
     detect_workflow_surface(repo, findings)
