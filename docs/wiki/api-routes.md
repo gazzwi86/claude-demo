@@ -45,3 +45,7 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 - `../middleware/authGuard.js`
 - `../errors.js` (ValidationError)
 - `../services/loopService.js`
+
+<!-- stale: apps/api/src/routes/CLAUDE.md --> <!-- at: 2026-05-08T05:03:35.965007+00:00 -->
+
+<!-- stale: apps/api/src/routes/auth.ts --> <!-- at: 2026-05-08T05:11:37.734089+00:00 -->

@@ -68,3 +68,5 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 - `./storage.js`
 - `../config.js`
 - `../errors.js` (NotFoundError)
+
+<!-- stale: apps/api/src/db/CLAUDE.md --> <!-- at: 2026-05-08T05:03:25.297911+00:00 -->

@@ -7,6 +7,7 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 ```
 apps/
 ├── web/
+│   ├── middleware.ts
 │   ├── app/
 │   │   ├── (auth)/login/page.tsx
 │   │   ├── (auth)/signup/page.tsx
@@ -110,7 +111,7 @@ infra/
 | Web UI primitives | [web-ui](docs/wiki/web-ui.md) | 3 files |
 | Web hooks | [web-hooks](docs/wiki/web-hooks.md) | 3 files |
 | Web lib (API clients) | [web-lib](docs/wiki/web-lib.md) | 2 files |
-| Web pages | [web-pages](docs/wiki/web-pages.md) | 8 files |
+| Web pages | [web-pages](docs/wiki/web-pages.md) | 9 files |
 | Web E2E tests | [web-e2e](docs/wiki/web-e2e.md) | 5 files |
 | API routes | [api-routes](docs/wiki/api-routes.md) | 4 files |
 | API services | [api-services](docs/wiki/api-services.md) | 3 files |

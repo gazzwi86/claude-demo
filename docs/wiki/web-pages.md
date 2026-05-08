@@ -49,3 +49,9 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 ## apps/web/app/(app)/account/page.tsx
 
 **Description:** Account settings page. Displays current user email and displayName. Contains a logout button that calls `auth.logout()` and redirects to `/`.
+
+---
+
+## apps/web/middleware.ts
+
+**Description:** Next.js Edge middleware that enforces authentication on protected routes (`/studio`, `/dashboard`, `/account`). Checks for the `looper_auth` cookie; redirects to `/login?next=<pathname>` if absent. The `config.matcher` restricts execution to those three path trees so public routes are unaffected.

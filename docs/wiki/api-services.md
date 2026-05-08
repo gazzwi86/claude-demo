@@ -67,3 +67,5 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 - `@aws-sdk/client-s3`
 - `@aws-sdk/s3-request-presigner`
 - `../config.js`
+
+<!-- stale: apps/api/src/services/s3Service.ts --> <!-- at: 2026-05-08T05:10:24.022833+00:00 -->
