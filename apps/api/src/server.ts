@@ -2,10 +2,16 @@ import Fastify from "fastify";
 import cookie from "@fastify/cookie";
 import cors from "@fastify/cors";
 import { config } from "./config.js";
+import { registerErrorHandler } from "./middleware/errorHandler.js";
+import authRoutes from "./routes/auth.js";
 
 export async function buildServer() {
   const app = Fastify({
-    logger: config.isProd ? true : { transport: { target: "pino-pretty" } },
+    logger: config.isProd
+      ? true
+      : process.env.SILENT === "1"
+        ? false
+        : { transport: { target: "pino-pretty" } },
   });
 
   await app.register(cookie, { secret: config.jwtSecret });
@@ -14,7 +20,11 @@ export async function buildServer() {
     credentials: true,
   });
 
+  registerErrorHandler(app);
+
   app.get("/health", async () => ({ ok: true, ts: new Date().toISOString() }));
+
+  await app.register(authRoutes);
 
   return app;
 }

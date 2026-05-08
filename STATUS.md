@@ -18,7 +18,7 @@
 
 **Typecheck:** `pnpm typecheck` green across all three packages.
 
-**Hook tests:** `python3 .claude/scripts/hooks_test.py` — 35/35 pass (including new `AreaForPathTests` + `IsTrackedTests` for the new monorepo path mapping).
+**Hook tests:** `python3 .claude/tests/hooks_test.py` — 35/35 pass (including new `AreaForPathTests` + `IsTrackedTests` for the new monorepo path mapping).
 
 ## What is NOT yet landed — agent teammates in worktrees
 

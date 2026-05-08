@@ -136,7 +136,7 @@ Convention:
 - **Skill / agent / command evals as `<name>.eval.md`** next to the `.md` they exercise. The runner lists them but doesn't execute them — they're prompts, you run them with `claude -p "$(cat <evalfile>)"` when you want to evaluate.
 - **`.claude/tests/run.sh`** discovers both and is the single entry point. CI-friendly (non-zero exit on failure).
 
-Current scaffolding test: `.claude/scripts/hooks_test.py` covers the Stop hook's pure helpers (token estimate, prompt build, verdict parse, excerpt budgeting against `LLM_CONTEXT_TOKENS`) and the end-to-end `stop()` flow with `_ask_local_llm` mocked. 21 tests, ~6 ms.
+Current scaffolding test: `.claude/tests/hooks_test.py` covers the Stop hook's pure helpers (token estimate, prompt build, verdict parse, excerpt budgeting against `LLM_CONTEXT_TOKENS`) and the end-to-end `stop()` flow with `_ask_local_llm` mocked. 21 tests, ~6 ms.
 
 ---
 

@@ -2,7 +2,7 @@
 """Sibling unit tests for hooks.py.
 
 Run via `.claude/tests/run.sh`, or directly:
-    python3 .claude/scripts/hooks_test.py
+    python3 .claude/tests/hooks_test.py
 """
 
 import io
@@ -14,7 +14,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
-sys.path.insert(0, str(Path(__file__).resolve().parent))
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
 import hooks  # noqa: E402
 
 
