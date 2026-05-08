@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sibling unit tests for hooks.py.
+"""Unit tests for hook modules.
 
 Run via `.claude/tests/run.sh`, or directly:
     python3 .claude/tests/hooks_test.py
@@ -15,7 +15,7 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-import hooks  # noqa: E402
+from modules import common, secrets, stop, memory, lifecycle  # noqa: E402
 
 
 def write_jsonl(lines: list[dict]) -> str:
@@ -30,10 +30,10 @@ class TokenEstimateTests(unittest.TestCase):
     def test_empty_file_returns_zero(self):
         path = write_jsonl([])
         self.addCleanup(os.unlink, path)
-        self.assertEqual(hooks._estimate_transcript_tokens(path), 0)
+        self.assertEqual(stop._estimate_transcript_tokens(path), 0)
 
     def test_missing_file_returns_none(self):
-        self.assertIsNone(hooks._estimate_transcript_tokens("/no/such/path.jsonl"))
+        self.assertIsNone(stop._estimate_transcript_tokens("/no/such/path.jsonl"))
 
     def test_chars_summed_then_divided_by_four(self):
         path = write_jsonl([
@@ -43,14 +43,14 @@ class TokenEstimateTests(unittest.TestCase):
         self.addCleanup(os.unlink, path)
         # 40 + 80 chars of leaf strings + role keys ("user"=4, "assistant"=9, "content"x2 = 14) = 147 chars / 4 = 36
         # We only assert lower bound + that it's deterministic & non-trivial.
-        result = hooks._estimate_transcript_tokens(path)
+        result = stop._estimate_transcript_tokens(path)
         self.assertGreaterEqual(result, (40 + 80) // 4)
 
     def test_bad_json_lines_skipped(self):
         path = tempfile.mktemp(suffix=".jsonl")
         Path(path).write_text("not json\n{\"role\":\"u\",\"content\":\"abcd\"}\n", encoding="utf-8")
         self.addCleanup(os.unlink, path)
-        self.assertGreater(hooks._estimate_transcript_tokens(path), 0)
+        self.assertGreater(stop._estimate_transcript_tokens(path), 0)
 
 
 class LastMessagesExcerptTests(unittest.TestCase):
@@ -58,7 +58,7 @@ class LastMessagesExcerptTests(unittest.TestCase):
         events = [{"role": "user", "content": f"msg-{i}"} for i in range(20)]
         path = write_jsonl(events)
         self.addCleanup(os.unlink, path)
-        excerpt = hooks._last_messages_excerpt(path, max_messages=5, max_chars=10_000)
+        excerpt = common._last_messages_excerpt(path, max_messages=5, max_chars=10_000)
         self.assertIn("msg-19", excerpt)
         self.assertIn("msg-15", excerpt)
         self.assertNotIn("msg-14", excerpt)
@@ -67,42 +67,42 @@ class LastMessagesExcerptTests(unittest.TestCase):
         events = [{"role": "user", "content": "x" * 200} for _ in range(30)]
         path = write_jsonl(events)
         self.addCleanup(os.unlink, path)
-        excerpt = hooks._last_messages_excerpt(path, max_messages=30, max_chars=500)
+        excerpt = common._last_messages_excerpt(path, max_messages=30, max_chars=500)
         self.assertLessEqual(len(excerpt), 500)
 
 
 class BuildDriftPromptTests(unittest.TestCase):
     def test_includes_usage_pct_and_excerpt_and_action_choices(self):
-        prompt = hooks._build_drift_prompt(excerpt="EXCERPT_MARK", usage_pct=42.0)
+        prompt = stop._build_drift_prompt(excerpt="EXCERPT_MARK", usage_pct=42.0)
         for needle in ("EXCERPT_MARK", "42%", "nothing", "compact", "clear", "JSON"):
             self.assertIn(needle, prompt)
 
 
 class ParseDriftVerdictTests(unittest.TestCase):
     def test_valid_compact(self):
-        v = hooks._parse_drift_verdict('Sure: {"action":"compact","reason":"too long"} done.')
+        v = stop._parse_drift_verdict('Sure: {"action":"compact","reason":"too long"} done.')
         self.assertEqual(v, {"action": "compact", "reason": "too long"})
 
     def test_valid_clear(self):
-        v = hooks._parse_drift_verdict('{"action":"clear","reason":"new topic"}')
+        v = stop._parse_drift_verdict('{"action":"clear","reason":"new topic"}')
         self.assertEqual(v["action"], "clear")
 
     def test_valid_nothing(self):
-        v = hooks._parse_drift_verdict('{"action":"nothing","reason":"fine"}')
+        v = stop._parse_drift_verdict('{"action":"nothing","reason":"fine"}')
         self.assertEqual(v["action"], "nothing")
 
     def test_invalid_action_rejected(self):
-        self.assertIsNone(hooks._parse_drift_verdict('{"action":"bogus","reason":"x"}'))
+        self.assertIsNone(stop._parse_drift_verdict('{"action":"bogus","reason":"x"}'))
 
     def test_no_json_rejected(self):
-        self.assertIsNone(hooks._parse_drift_verdict("just words, no json here"))
+        self.assertIsNone(stop._parse_drift_verdict("just words, no json here"))
 
     def test_empty_input_rejected(self):
-        self.assertIsNone(hooks._parse_drift_verdict(""))
+        self.assertIsNone(stop._parse_drift_verdict(""))
 
 
 class StopHookFlowTests(unittest.TestCase):
-    """End-to-end Stop hook with the LLM call mocked."""
+    """End-to-end drift_check with the LLM call mocked."""
 
     def setUp(self):
         self.transcript = write_jsonl([
@@ -121,9 +121,9 @@ class StopHookFlowTests(unittest.TestCase):
         }
         captured_stderr = io.StringIO()
         with mock.patch.dict(os.environ, env, clear=False), \
-             mock.patch.object(hooks, "_ask_local_llm", return_value=llm_response), \
+             mock.patch.object(stop, "_ask_local_llm", return_value=llm_response), \
              mock.patch.object(sys, "stderr", captured_stderr):
-            hooks.stop({"transcript_path": self.transcript})
+            stop.drift_check({"transcript_path": self.transcript})
         return captured_stderr.getvalue()
 
     def test_unconfigured_backend_is_silent(self):
@@ -177,8 +177,8 @@ class StopHookFlowTests(unittest.TestCase):
             "LLM_CONTEXT_TOKENS": "4000",  # tiny local model
         }
         with mock.patch.dict(os.environ, env, clear=False), \
-             mock.patch.object(hooks, "_ask_local_llm", side_effect=fake_ask):
-            hooks.stop({"transcript_path": big})
+             mock.patch.object(stop, "_ask_local_llm", side_effect=fake_ask):
+            stop.drift_check({"transcript_path": big})
 
         # Excerpt budget = (4000 - 500) * 4 / 2 = 7000 chars; prompt template
         # adds ~500 chars on top. Assert the prompt is comfortably below the
@@ -188,16 +188,16 @@ class StopHookFlowTests(unittest.TestCase):
 
 class ReadMemoryIndexTests(unittest.TestCase):
     def test_missing_file_returns_none(self):
-        with mock.patch.object(hooks, "_MEMORY_INDEX", Path("/no/such/MEMORY.md")):
-            self.assertIsNone(hooks._read_memory_index())
+        with mock.patch.object(memory, "_MEMORY_INDEX", Path("/no/such/MEMORY.md")):
+            self.assertIsNone(memory._read_memory_index())
 
     def test_returns_content_when_present(self):
         fd, path = tempfile.mkstemp(suffix=".md")
         with os.fdopen(fd, "w", encoding="utf-8") as f:
             f.write("# Project Memory\n\n## Index\n")
         self.addCleanup(os.unlink, path)
-        with mock.patch.object(hooks, "_MEMORY_INDEX", Path(path)):
-            result = hooks._read_memory_index()
+        with mock.patch.object(memory, "_MEMORY_INDEX", Path(path)):
+            result = memory._read_memory_index()
         self.assertIn("# Project Memory", result)
 
     def test_truncates_at_200_lines(self):
@@ -206,8 +206,8 @@ class ReadMemoryIndexTests(unittest.TestCase):
             for i in range(250):
                 f.write(f"line-{i}\n")
         self.addCleanup(os.unlink, path)
-        with mock.patch.object(hooks, "_MEMORY_INDEX", Path(path)):
-            result = hooks._read_memory_index()
+        with mock.patch.object(memory, "_MEMORY_INDEX", Path(path)):
+            result = memory._read_memory_index()
         self.assertIn("truncated", result)
         self.assertNotIn("line-220", result)
 
@@ -217,7 +217,7 @@ class UserPromptSubmitTests(unittest.TestCase):
         payload = {"prompt": prompt}
         captured = io.StringIO()
         with mock.patch.object(sys, "stdout", captured):
-            hooks.user_prompt_submit(payload)
+            memory.user_prompt_submit(payload)
         return captured.getvalue()
 
     def test_trigger_we_decided_emits_hint(self):
@@ -258,8 +258,6 @@ class UserPromptSubmitTests(unittest.TestCase):
 
 class SessionStartMemoryTests(unittest.TestCase):
     def _run_session_start(self, memory_content: str | None) -> tuple[str, str]:
-        fd_out, out_path = tempfile.mkstemp()
-        os.close(fd_out)
         captured_out = io.StringIO()
         captured_err = io.StringIO()
 
@@ -271,15 +269,14 @@ class SessionStartMemoryTests(unittest.TestCase):
         else:
             index_path = Path("/no/such/MEMORY.md")
 
-        graphify_missing = Path("/no/such/graphify.json")
-
-        with mock.patch.object(hooks, "_MEMORY_INDEX", index_path), \
+        with mock.patch.object(memory, "_MEMORY_INDEX", index_path), \
              mock.patch.object(sys, "stdout", captured_out), \
              mock.patch.object(sys, "stderr", captured_err), \
              mock.patch("subprocess.run") as mock_run, \
-             mock.patch.object(hooks, "PROJECT_ROOT", Path(tempfile.gettempdir())):
+             mock.patch.object(lifecycle, "PROJECT_ROOT", Path(tempfile.gettempdir())):
             mock_run.return_value = mock.Mock(stdout=".claude/scripts/git-hooks\n", returncode=0)
-            hooks.session_start({})
+            memory.inject_memory_index({})
+            lifecycle.check_setup_status({})
 
         if memory_content is not None:
             os.unlink(mem_path)
@@ -319,14 +316,14 @@ class ProjectMemoryFlushNudgeTests(unittest.TestCase):
             os.utime(fpath, (now + age_offset, now + age_offset))
 
         captured_err = io.StringIO()
-        with mock.patch.object(hooks, "PROJECT_ROOT", memory_dir.parent), \
+        with mock.patch.object(memory, "PROJECT_ROOT", memory_dir.parent), \
              mock.patch.object(sys, "stderr", captured_err):
             # Redirect PROJECT_ROOT so that .claude/memory points to our temp dir
             temp_claude = memory_dir.parent / ".claude" / "memory"
             temp_claude.parent.mkdir(parents=True, exist_ok=True)
             if not temp_claude.exists():
                 temp_claude.symlink_to(memory_dir)
-            hooks._project_memory_flush_nudge(transcript_path)
+            memory.flush_nudge_on_stop({"transcript_path": transcript_path})
 
         os.unlink(transcript_path)
         import shutil
@@ -363,53 +360,53 @@ class AreaForPathTests(unittest.TestCase):
     """Lock the post-rewrite path → wiki-area contract."""
 
     def test_packages_returns_package_name(self):
-        self.assertEqual(hooks.area_for_path("packages/shared/src/schemas.ts"), "shared")
+        self.assertEqual(common.area_for_path("packages/shared/src/schemas.ts"), "shared")
 
     def test_infra_terraform(self):
-        self.assertEqual(hooks.area_for_path("infra/terraform/main.tf"), "infra-terraform")
+        self.assertEqual(common.area_for_path("infra/terraform/main.tf"), "infra-terraform")
 
     def test_infra_docker(self):
-        self.assertEqual(hooks.area_for_path("infra/docker/docker-compose.yml"), "infra-docker")
+        self.assertEqual(common.area_for_path("infra/docker/docker-compose.yml"), "infra-docker")
 
     def test_web_audio_lib(self):
-        self.assertEqual(hooks.area_for_path("apps/web/lib/audio/engine.ts"), "web-audio")
+        self.assertEqual(common.area_for_path("apps/web/lib/audio/engine.ts"), "web-audio")
 
     def test_web_components_studio(self):
-        self.assertEqual(hooks.area_for_path("apps/web/components/studio/PadGrid.tsx"), "web-studio")
+        self.assertEqual(common.area_for_path("apps/web/components/studio/PadGrid.tsx"), "web-studio")
 
     def test_web_components_ui(self):
-        self.assertEqual(hooks.area_for_path("apps/web/components/ui/Slider.tsx"), "web-ui")
+        self.assertEqual(common.area_for_path("apps/web/components/ui/Slider.tsx"), "web-ui")
 
     def test_web_app_pages(self):
-        self.assertEqual(hooks.area_for_path("apps/web/app/(app)/studio/page.tsx"), "web-pages")
+        self.assertEqual(common.area_for_path("apps/web/app/(app)/studio/page.tsx"), "web-pages")
 
     def test_web_hooks(self):
-        self.assertEqual(hooks.area_for_path("apps/web/hooks/useAudioEngine.ts"), "web-hooks")
+        self.assertEqual(common.area_for_path("apps/web/hooks/useAudioEngine.ts"), "web-hooks")
 
     def test_api_routes(self):
-        self.assertEqual(hooks.area_for_path("apps/api/src/routes/auth.ts"), "api-routes")
+        self.assertEqual(common.area_for_path("apps/api/src/routes/auth.ts"), "api-routes")
 
     def test_api_db(self):
-        self.assertEqual(hooks.area_for_path("apps/api/src/db/users.ts"), "api-db")
+        self.assertEqual(common.area_for_path("apps/api/src/db/users.ts"), "api-db")
 
     def test_api_tests_dir(self):
-        self.assertEqual(hooks.area_for_path("apps/api/tests/auth.test.ts"), "api-tests")
+        self.assertEqual(common.area_for_path("apps/api/tests/auth.test.ts"), "api-tests")
 
     def test_unknown_top_level_returns_none(self):
-        self.assertIsNone(hooks.area_for_path("README.md"))
-        self.assertIsNone(hooks.area_for_path("docs/wiki/index.md"))
+        self.assertIsNone(common.area_for_path("README.md"))
+        self.assertIsNone(common.area_for_path("docs/wiki/index.md"))
 
 
 class IsTrackedTests(unittest.TestCase):
     def test_tracked_roots(self):
-        self.assertTrue(hooks.is_tracked("apps/web/app/page.tsx"))
-        self.assertTrue(hooks.is_tracked("packages/shared/src/index.ts"))
-        self.assertTrue(hooks.is_tracked("infra/terraform/main.tf"))
+        self.assertTrue(common.is_tracked("apps/web/app/page.tsx"))
+        self.assertTrue(common.is_tracked("packages/shared/src/index.ts"))
+        self.assertTrue(common.is_tracked("infra/terraform/main.tf"))
 
     def test_untracked(self):
-        self.assertFalse(hooks.is_tracked("README.md"))
-        self.assertFalse(hooks.is_tracked("scripts/dev.sh"))
-        self.assertFalse(hooks.is_tracked("src/old.js"))  # legacy path no longer tracked
+        self.assertFalse(common.is_tracked("README.md"))
+        self.assertFalse(common.is_tracked("scripts/dev.sh"))
+        self.assertFalse(common.is_tracked("src/old.js"))  # legacy path no longer tracked
 
 
 class CheckNoSecretsTests(unittest.TestCase):
@@ -423,7 +420,7 @@ class CheckNoSecretsTests(unittest.TestCase):
             'const PASSWORD = "supersecret123";',
         )
         # Should not call sys.exit — no SystemExit raised.
-        hooks.check_no_secrets(payload)
+        secrets.check_no_secrets(payload)
 
     def test_eval_pattern_caught_in_source_file(self):
         payload = self._make_payload(
@@ -431,7 +428,7 @@ class CheckNoSecretsTests(unittest.TestCase):
             "const result = eval(userInput);",
         )
         with self.assertRaises(SystemExit) as cm:
-            hooks.check_no_secrets(payload)
+            secrets.check_no_secrets(payload)
         self.assertEqual(cm.exception.code, 2)
 
     def test_fixture_password_in_spec_file_not_blocked(self):
@@ -440,7 +437,7 @@ class CheckNoSecretsTests(unittest.TestCase):
             "apps/web/lib/auth.spec.ts",
             'password: "mypassword123", token: "abc123token456"',
         )
-        hooks.check_no_secrets(payload)  # must not raise
+        secrets.check_no_secrets(payload)  # must not raise
 
 
 if __name__ == "__main__":

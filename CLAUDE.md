@@ -61,7 +61,7 @@ before assuming a convention from this top-level file.
   files. Per-area pages list every file with a one-line description, the
   exports, and dependencies.
 - The `area-for-path` mapping (which source file maps to which wiki page)
-  lives in `.claude/scripts/hooks.py`.
+  lives in `.claude/scripts/modules/common.py`.
 
 ## graphify
 

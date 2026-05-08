@@ -25,7 +25,7 @@ docs/wiki/           ← per-area pages
 
 ## Areas → file mapping
 
-For any source file, the area is its first directory under `src/` (or `tests` for tests). Top-level `src/*.js` map to `core.md`. The `area-for-path` mapping is also implemented in `.claude/scripts/hooks.py` (`area_for_path`) and used by the `mark-anatomy-stale` and `check-anatomy-fresh` hooks.
+For any source file, the area is its first directory under `src/` (or `tests` for tests). Top-level `src/*.js` map to `core.md`. The `area-for-path` mapping is also implemented in `.claude/scripts/modules/common.py` (`area_for_path`) and used by the `mark-anatomy-stale` and `check-anatomy-fresh` hooks.
 
 ## Per-area page format
 

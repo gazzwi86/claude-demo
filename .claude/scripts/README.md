@@ -18,23 +18,41 @@ Where `<event>` is:
 
 | Event | When it fires | What this dispatcher does |
 |---|---|---|
-| `pre-tool-use check-no-secrets` | Before every Edit / Write | Greps the new content for hardcoded secrets / API keys / `eval()`. Blocks the tool call (exit 2) on a hit. |
+| `pre-tool-use check-no-secrets` | Before every Edit / Write | Greps new content for hardcoded secrets, API keys, and dangerous patterns. Blocks (exit 2) on a hit. |
 | `pre-tool-use graphify-hint` | Before every Glob / Grep | If `graphify-out/graph.json` exists, nudges Claude to consult `GRAPH_REPORT.md` first. |
 | `post-tool-use check-circular-deps` | After every Edit / Write | **Disabled.** Was a CommonJS `require()` walker; the rewrite is TS+ESM. Keep the slot — re-enable with `madge --circular` if needed. |
 | `post-tool-use mark-anatomy-stale` | After every Edit / Write | Looks up the touched file's wiki page via `area_for_path()` and appends a stale-marker comment (`<!-- stale: <file> -->`). |
 | `post-tool-use claude-review` | After every Edit / Write | Spawns `claude -p` with a security-linter prompt over the new content. Async. No-op if `claude` CLI isn't on PATH. |
 | `notification` | When Claude sends a notification | Echoes to stderr. |
-| `user-prompt-submit` | Before each user prompt is sent | Filter slot — currently a no-op. |
-| `stop` | When the main agent stops | **Drift detector.** Estimates transcript token usage, and (if above the gate %) asks a local LLM (ollama / lm studio) whether to `/compact`, `/clear`, or do nothing. Configured via `LLM_BACKEND` / `LLM_MODEL` / `STOP_HOOK_DRIFT_GATE` env vars. |
+| `user-prompt-submit` | Before each user prompt is sent | Nudges the project-memory skill when the prompt contains a save-trigger keyword. |
+| `stop` | When the main agent stops | (1) Memory flush nudge — warns if save-trigger keywords appeared but no memory file was written. (2) **Drift detector** — estimates transcript token usage, and (if above the gate %) asks a local LLM (ollama / lm studio) whether to `/compact`, `/clear`, or do nothing. |
 | `subagent-stop` | When a subagent stops | No-op. |
 | `pre-compact` | Before context compaction | No-op. |
-| `session-start` | At session start | Warns if git hooks aren't wired (`/setup` to fix). |
+| `session-start` | At session start | (1) Injects `MEMORY.md` index into context. (2) Warns if git hooks aren't wired (`/setup` to fix). |
 | `session-end` | At session end | No-op. |
 | `check-anatomy-fresh` | Manual / pre-push hook | Scans `docs/wiki/` for stale markers; exit 1 with file list if any. |
 
+### Module structure
+
+`hooks.py` is a thin harness (~60 lines). Each logical concern lives in its own
+module under `modules/`:
+
+| Module | Purpose |
+|---|---|
+| `modules/common.py` | Shared utilities: `PROJECT_ROOT`, `area_for_path()`, `block()`, `rel_from_root()`, transcript helpers |
+| `modules/secrets.py` | PreToolUse: secret scanner and dangerous-pattern guard |
+| `modules/graphify.py` | PreToolUse: graphify index nudge |
+| `modules/wiki.py` | PostToolUse: `mark_anatomy_stale`, `check_anatomy_fresh` |
+| `modules/eslint.py` | PostToolUse: ESLint security lint |
+| `modules/stop.py` | Stop: context drift detection (token estimate + local LLM) |
+| `modules/memory.py` | Stop nudge, `user_prompt_submit`, session-start memory injection |
+| `modules/lifecycle.py` | `notification`, `check_setup_status`, `subagent_stop`, `pre_compact`, `session_end` |
+| `modules/circular_deps.py` | PostToolUse: circular dep check — **disabled**, full DFS kept for re-enable |
+| `modules/claude_review.py` | PostToolUse: LLM security review — **disabled** (too expensive for always-on) |
+
 ### Path → wiki area mapping
 
-The `area_for_path()` function in `hooks.py` is what makes the wiki
+The `area_for_path()` function in `modules/common.py` is what makes the wiki
 LLM-maintainable: each touched file maps to exactly one wiki page so
 stale markers don't multiply. Current mapping:
 
@@ -73,8 +91,8 @@ toward it for cross-file lookups.
 
 ## How to add a new hook
 
-1. Add a function to `hooks.py`.
-2. Register it in the relevant dispatcher dict (`PRE_TOOL_USE_CHECKS`,
+1. Add a function to the relevant module in `modules/` (or create a new one).
+2. Register it in the appropriate dispatch table in `hooks.py` (`PRE_TOOL_USE_CHECKS`,
    `POST_TOOL_USE_CHECKS`, or `EVENT_HANDLERS`).
 3. Wire `settings.json` to call `python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py <event> <name>`.
 4. Add a test in `../tests/hooks_test.py`.
