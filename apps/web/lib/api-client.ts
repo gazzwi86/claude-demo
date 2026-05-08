@@ -21,8 +21,9 @@ export type ApiInit = Omit<RequestInit, "body" | "headers"> & {
 };
 
 export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
+  const hasBody = init.body !== undefined;
   const headers: Record<string, string> = {
-    "content-type": "application/json",
+    ...(hasBody ? { "content-type": "application/json" } : {}),
     ...init.headers,
   };
 
@@ -30,7 +31,7 @@ export async function api<T>(path: string, init: ApiInit = {}): Promise<T> {
     ...init,
     headers,
     credentials: "include",
-    body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+    body: hasBody ? JSON.stringify(init.body) : undefined,
   });
 
   if (res.status === 204) return undefined as T;

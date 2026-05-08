@@ -61,8 +61,7 @@ export default async function loopsRoutes(app: FastifyInstance): Promise<void> {
     async (request, reply) => {
       const userId = request.user!.id;
       await deleteLoopAndObject(userId, request.params.id);
-      reply.code(204);
-      return null;
+      return reply.code(204).send();
     },
   );
 

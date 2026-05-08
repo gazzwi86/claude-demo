@@ -42,8 +42,7 @@ export default async function authRoutes(app: FastifyInstance): Promise<void> {
 
   app.post("/auth/logout", async (_request, reply) => {
     reply.clearCookie(AUTH_COOKIE_NAME, { path: "/" });
-    reply.code(204);
-    return null;
+    return reply.code(204).send();
   });
 
   app.get("/auth/me", { preHandler: authGuard }, async (request) => {
