@@ -58,12 +58,10 @@ export default function DashboardPage() {
       </div>
 
       {error ? (
-        <p role="alert" className="mb-4 rounded-md bg-[color:var(--color-danger)]/10 px-3 py-2 text-sm text-[color:var(--color-danger)]">
+        <p role="alert" className="rounded-md bg-[color:var(--color-danger)]/10 px-3 py-2 text-sm text-[color:var(--color-danger)]">
           {error}
         </p>
-      ) : null}
-
-      {loops === null ? (
+      ) : loops === null ? (
         <p className="text-sm text-[color:var(--color-text-dim)]">Loading…</p>
       ) : loops.length === 0 ? (
         <div className="rounded-lg border border-dashed border-[color:var(--color-border)] bg-[color:var(--color-surface)]/40 p-12 text-center">

@@ -118,30 +118,33 @@ export default function StudioPage() {
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-6 py-6">
       <h1 className="sr-only">Studio</h1>
 
-      <TransportBar
-        engine={engine}
-        ready={ready}
-        resume={resume}
-        effects={effects}
-        onEffects={(p) => {
-          setEffects((prev) => ({ ...prev, ...p }));
-          engine?.setEffects(p);
-        }}
-        onStopAll={() => {
-          engine?.stopAll();
-          setPads((prev) => prev.map((p) => ({ ...p, playing: false })));
-        }}
-      />
-
       {!ready ? (
         <div className="rounded-lg border border-[color:var(--color-border)] bg-[color:var(--color-surface)] p-12 text-center">
-          <p className="mb-4 text-sm text-[color:var(--color-text-dim)]">
-            The browser needs a click to start audio.
+          <h2 className="mb-2 text-lg font-semibold">Ready when you are</h2>
+          <p className="mb-5 text-sm text-[color:var(--color-text-dim)]">
+            The browser needs a click before it can play sound.
           </p>
-          <Button onClick={() => void resume()}>Enable audio</Button>
+          <Button onClick={() => void resume()} aria-label="Start studio">
+            Start studio
+          </Button>
         </div>
       ) : (
         <>
+          <TransportBar
+            engine={engine}
+            ready={ready}
+            resume={resume}
+            effects={effects}
+            onEffects={(p) => {
+              setEffects((prev) => ({ ...prev, ...p }));
+              engine?.setEffects(p);
+            }}
+            onStopAll={() => {
+              engine?.stopAll();
+              setPads((prev) => prev.map((p) => ({ ...p, playing: false })));
+            }}
+          />
+
           <LoopRecorder engine={engine} onRecorded={onRecorded} />
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_280px]">

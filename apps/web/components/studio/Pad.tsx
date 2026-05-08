@@ -44,12 +44,12 @@ export function Pad({
         selected && !empty && "ring-1 ring-[color:var(--color-accent)]",
       )}
     >
-      <div className="mb-2 flex items-baseline justify-between">
+      <div className="mb-2 flex items-center justify-between gap-2">
         <span className="font-mono text-[10px] uppercase tracking-wider text-[color:var(--color-text-dim)]">
-          Pad {String(index + 1).padStart(2, "0")}
+          {String(index + 1).padStart(2, "0")}
         </span>
         {!empty ? (
-          <div className="flex gap-1 text-[10px]">
+          <div className="flex shrink-0 gap-1 text-[10px]">
             <button
               type="button"
               onClick={(e) => {
@@ -121,7 +121,7 @@ export function Pad({
       </button>
 
       {!empty ? (
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-3 hidden grid-cols-2 gap-2 sm:grid">
           <Slider
             label="Vol"
             min={0}

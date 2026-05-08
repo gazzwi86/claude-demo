@@ -35,8 +35,8 @@ export function TransportBar({
         </Button>
       )}
 
-      <div className="ml-auto flex items-center gap-6">
-        <div className="w-40">
+      <div className="ml-auto flex min-w-0 flex-wrap items-center justify-end gap-x-4 gap-y-2">
+        <div className="w-32 shrink-0 sm:w-40">
           <Slider
             label="Master"
             min={0}
@@ -48,7 +48,9 @@ export function TransportBar({
             aria-label="Master volume"
           />
         </div>
-        <Meter engine={engine} />
+        <div className="shrink-0">
+          <Meter engine={engine} />
+        </div>
       </div>
     </div>
   );
