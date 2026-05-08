@@ -1,0 +1,41 @@
+# Confirms each app builds. Runs on PR + push.
+name: Build
+
+on:
+  push:
+    branches: [main, music-looper-rewrite]
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Build api (typecheck only)
+        run: pnpm -F @looper/api build
+
+      - name: Cache Next.js build
+        uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key: ${{ runner.os }}-next-${{ hashFiles('apps/web/**/*.ts', 'apps/web/**/*.tsx', 'apps/web/package.json') }}
+          restore-keys: |
+            ${{ runner.os }}-next-
+
+      - name: Build web
+        run: pnpm -F @looper/web build

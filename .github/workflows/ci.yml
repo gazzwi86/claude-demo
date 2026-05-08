@@ -1,0 +1,47 @@
+# Per-package lint, typecheck, and Vitest. Runs on every push + PR.
+name: CI
+
+on:
+  push:
+    branches: [main, music-looper-rewrite]
+  pull_request:
+
+jobs:
+  lint-typecheck-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Test (shared)
+        run: pnpm -F @looper/shared test
+
+      - name: Test (api)
+        # tests/setup.ts forces DDB_USE_STUB / S3_USE_STUB / BCRYPT_ROUNDS /
+        # JWT_SECRET so the suite never reaches real AWS or live config.
+        run: pnpm -F @looper/api test
+
+      - name: Test (web)
+        run: pnpm -F @looper/web test
+
+      - name: Hook tests
+        run: python3 .claude/tests/hooks_test.py
