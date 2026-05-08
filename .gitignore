@@ -3,7 +3,7 @@ node_modules/
 .env
 .env.local
 .env.*.local
-graphify-out/
+graphify-out/cache/
 
 # Build artefacts
 dist/

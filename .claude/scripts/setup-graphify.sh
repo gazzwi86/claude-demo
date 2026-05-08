@@ -29,7 +29,7 @@ echo "setup-graphify: wiring Claude Code integration..."
 graphify claude install
 
 echo "setup-graphify: indexing this repo..."
-graphify index .
+graphify update .
 
 echo
 echo "Done. Try in Claude:"
