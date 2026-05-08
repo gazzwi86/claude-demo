@@ -62,7 +62,7 @@ export default function SignupPage() {
         </p>
       </div>
 
-      <form onSubmit={onSubmit} className="flex flex-col gap-4" aria-label="Signup form">
+      <form onSubmit={onSubmit} className="flex flex-col gap-4" aria-label="Signup form" noValidate>
         <TextField
           label="Display name"
           name="displayName"

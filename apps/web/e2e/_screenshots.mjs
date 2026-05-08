@@ -30,9 +30,9 @@ const pages = [
   { path: "/", file: "home" },
   { path: "/login", file: "login" },
   { path: "/signup", file: "signup" },
-  { path: "/studio", file: "studio-gated" },
   { path: "/dashboard", file: "dashboard" },
   { path: "/account", file: "account" },
+  { path: "/studio", file: "studio-gated" },
 ];
 
 await mkdir(OUT, { recursive: true });
@@ -56,17 +56,15 @@ for (const view of views) {
     await shoot(page, `${p.file}-${view.name}.png`);
   }
 
-  await page.goto(`${BASE}/studio`);
   const start = page.getByRole("button", { name: /start studio/i });
-  if (await start.isVisible().catch(() => false)) {
+  if (await start.isVisible()) {
     await start.click();
     await page.waitForTimeout(900);
   }
   await shoot(page, `studio-active-${view.name}.png`);
 
-  // Bonus: studio with a sample loaded onto pad 1.
   const firstSample = page.getByRole("button", { name: /Kick · 90 BPM/i });
-  if (await firstSample.isVisible().catch(() => false)) {
+  if (await firstSample.isVisible()) {
     await firstSample.click();
     await page.waitForTimeout(400);
   }

@@ -44,7 +44,7 @@ export default function LoginPage() {
         <p className="mt-2 text-sm text-[color:var(--color-text-dim)]">Sign in to your studio.</p>
       </div>
 
-      <form onSubmit={onSubmit} className="flex flex-col gap-4" aria-label="Login form">
+      <form onSubmit={onSubmit} className="flex flex-col gap-4" aria-label="Login form" noValidate>
         <TextField
           label="Email"
           type="email"
