@@ -93,19 +93,22 @@ def area_for_path(rel_path: str) -> Optional[str]:
     if head == "infra":
         return "infra-" + (parts[1] if len(parts) > 1 else "root")
 
-    if head == "apps" and len(parts) >= 3:
+    if head == "apps" and len(parts) >= 4:
+        # Only files inside a subdirectory get a wiki area; top-level
+        # config files (apps/web/tsconfig.json, etc.) are intentionally
+        # untracked.
         app = parts[1]
         top = parts[2]
         if app == "web":
-            if top == "lib" and len(parts) > 3 and parts[3] == "audio":
+            if top == "lib" and parts[3] == "audio":
                 return "web-audio"
-            if top == "components" and len(parts) > 3:
+            if top == "components":
                 return f"web-{parts[3]}"
             if top == "app":
                 return "web-pages"
             return f"web-{top}"
         if app == "api":
-            if top == "src" and len(parts) > 3:
+            if top == "src":
                 return f"api-{parts[3]}"
             if top == "tests":
                 return "api-tests"
