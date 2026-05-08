@@ -41,6 +41,24 @@
       "Read(./*.key)"
     ]
   },  
+  "_examples": {
+    "_why": "Two per-edit LLM hooks were removed from always-on config. Each fires on every Edit|Write, making them very expensive for routine tasks. Moved here for reference; see also .claude/examples/expensive-hooks.json for embedding instructions.",
+    "per-edit-prompt-hook": {
+      "_cost": "~2500 tokens injected into the main context window on every Edit|Write call",
+      "_why_disabled": "At 2500 tokens/edit this doubles context size on a typical feature branch. Moved to Stop event (single fire per session) instead.",
+      "type": "prompt",
+      "prompt": "You are a security linter. The hook input JSON below describes a file Claude just wrote. If tool_input.file_path is not under apps/, packages/, infra/, or .claude/scripts/ — or does not end in .ts, .tsx, .js, .mjs, .py, or .sh — return {\"decision\":\"approve\"} immediately with no other commentary. Otherwise inspect tool_input.content (Write) or tool_input.new_string (Edit) and decide if it (a) hardcodes a real secret/API key/token (a placeholder or example string in a config file's fallback or .env.example is fine), (b) calls eval() or new Function(), or (c) introduces a clear command/SQL injection. Return JSON ONLY, in the form {\"decision\":\"block\",\"reason\":\"...\"} on a violation, or {\"decision\":\"approve\"} otherwise.\n\nHook input:\n$ARGUMENTS"
+    },
+    "per-edit-claude-subprocess-hook": {
+      "_cost": "Spawns a claude -p subprocess per Edit|Write — a separate API call (+ latency) each time",
+      "_why_disabled": "Redundant with the prompt: hook above and creates a second billable API call on every file write. See .claude/examples/expensive-hooks.json for the full working config.",
+      "type": "command",
+      "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py post-tool-use claude-review",
+      "timeout": 45000,
+      "async": true,
+      "statusMessage": "Running claude -p security review"
+    }
+  },
   "hooks": {
     "PreToolUse": [
       {
@@ -81,14 +99,10 @@
           },
           {
             "type": "command",
-            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py post-tool-use claude-review",
-            "timeout": 45000,
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py post-tool-use check-eslint-security",
+            "timeout": 20000,
             "async": true,
-            "statusMessage": "Running claude -p security review"
-          },
-          {
-            "type": "prompt",
-            "prompt": "You are a security linter. The hook input JSON below describes a file Claude just wrote. If tool_input.file_path is not under apps/, packages/, infra/, or .claude/scripts/ — or does not end in .ts, .tsx, .js, .mjs, .py, or .sh — return {\"decision\":\"approve\"} immediately with no other commentary. Otherwise inspect tool_input.content (Write) or tool_input.new_string (Edit) and decide if it (a) hardcodes a real secret/API key/token (a placeholder or example string in a config file's fallback or .env.example is fine), (b) calls eval() or new Function(), or (c) introduces a clear command/SQL injection. Return JSON ONLY, in the form {\"decision\":\"block\",\"reason\":\"...\"} on a violation, or {\"decision\":\"approve\"} otherwise.\n\nHook input:\n$ARGUMENTS"
+            "statusMessage": "Running eslint security check"
           }
         ]
       }
@@ -119,6 +133,10 @@
           {
             "type": "command",
             "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py stop"
+          },
+          {
+            "type": "prompt",
+            "prompt": "Review the conversation. Did Claude complete the stated task? If any requested functionality is not implemented, any test is still failing, or any file mentioned in the task was not actually written, respond with a short bullet list of what is missing prefixed with INCOMPLETE:. Otherwise respond with just: task complete."
           }
         ]
       }

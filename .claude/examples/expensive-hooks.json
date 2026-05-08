@@ -1,0 +1,29 @@
+{
+  "_doc": "Working configurations for the two per-edit LLM hooks that were removed from always-on settings.json. They are correct and functional — they were disabled because they fire on every Edit|Write, creating significant token/API costs on a typical session. Use them when you explicitly want per-edit LLM review (e.g. a high-stakes security audit session) by copying into settings.local.json.",
+  "_embed_instructions": "Copy the hooks array entries below into the PostToolUse Edit|Write hooks array in .claude/settings.local.json (not settings.json — settings.local.json is gitignored and won't affect teammates). Remove or re-gitignore when done.",
+
+  "example_settings_local_json": {
+    "hooks": {
+      "PostToolUse": [
+        {
+          "matcher": "Edit|Write",
+          "hooks": [
+            {
+              "_doc": "Option A — native prompt: hook. Adds ~2500 tokens to the main context window on every Edit|Write. No subprocess; uses the current session's model. Fast but expensive at scale.",
+              "type": "prompt",
+              "prompt": "You are a security linter. The hook input JSON below describes a file Claude just wrote. If tool_input.file_path is not under apps/, packages/, infra/, or .claude/scripts/ — or does not end in .ts, .tsx, .js, .mjs, .py, or .sh — return {\"decision\":\"approve\"} immediately with no other commentary. Otherwise inspect tool_input.content (Write) or tool_input.new_string (Edit) and decide if it (a) hardcodes a real secret/API key/token (a placeholder or example string in a config file's fallback or .env.example is fine), (b) calls eval() or new Function(), or (c) introduces a clear command/SQL injection. Return JSON ONLY, in the form {\"decision\":\"block\",\"reason\":\"...\"} on a violation, or {\"decision\":\"approve\"} otherwise.\n\nHook input:\n$ARGUMENTS"
+            },
+            {
+              "_doc": "Option B — subprocess hook via claude -p. Spawns a separate claude process per edit (separate API call + latency). Gives full model/output-format control. The claude_review() function in hooks.py implements this; see DISABLED note in its docstring.",
+              "type": "command",
+              "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py post-tool-use claude-review",
+              "timeout": 45000,
+              "async": true,
+              "statusMessage": "Running claude -p security review"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
