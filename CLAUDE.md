@@ -10,6 +10,13 @@ and out, change speed, and apply filter / delay / reverb effects — all in
 the browser via the Web Audio API. The backend stores audio blobs in S3
 and metadata in DynamoDB. Local-first via DynamoDB Local + LocalStack.
 
+## Laws
+
+1. Don't assume. Don't hide confusion. Surface tradeoffs.
+2. Minimum code that solves the problem. Nothing speculative.
+3. Touch only what you must. Clean up only your own mess, unless instructed otherwise.
+4. Define success criteria. Loop until verified.
+
 ## Layout — read this map before grepping
 
 | Path | What it is | Conventions live in |
@@ -61,6 +68,23 @@ before assuming a convention from this top-level file.
 If `graphify-out/graph.json` exists, this project has a graphify knowledge
 graph. Prefer it over `Grep`/`Glob` for cross-file dependency lookups.
 After modifying files, run `graphify update .` to keep it current.
+
+## Project memory
+
+`.claude/memory/MEMORY.md` is the team-shared, committed-to-git memory layer
+for this repo. It holds four types of facts: `project` (initiatives,
+deadlines), `decision` (technical/architectural rationale), `feedback`
+(team conventions specific to this codebase), `reference` (pointers to
+external systems — Linear, Grafana, dashboards, runbooks).
+
+Writes are governed by the `project-memory` skill at
+`.claude/skills/project-memory/SKILL.md`. Use `/remember <fact>` to save
+explicitly. The skill routes personal preferences (style, role, tooling
+taste) to user-level memory at `~/.claude/projects/.../memory/` instead.
+
+The skill MUST refuse to save anything already covered by this file,
+`.claude/rules/`, `ANATOMY.md`, `docs/wiki/`, or `git log` — memory is
+for facts not derivable from code, conventions, or history.
 
 ## /cc-audit (user-level)
 

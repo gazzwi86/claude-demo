@@ -186,6 +186,179 @@ class StopHookFlowTests(unittest.TestCase):
         self.assertLess(captured["len"], 4000 * 4)
 
 
+class ReadMemoryIndexTests(unittest.TestCase):
+    def test_missing_file_returns_none(self):
+        with mock.patch.object(hooks, "_MEMORY_INDEX", Path("/no/such/MEMORY.md")):
+            self.assertIsNone(hooks._read_memory_index())
+
+    def test_returns_content_when_present(self):
+        fd, path = tempfile.mkstemp(suffix=".md")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write("# Project Memory\n\n## Index\n")
+        self.addCleanup(os.unlink, path)
+        with mock.patch.object(hooks, "_MEMORY_INDEX", Path(path)):
+            result = hooks._read_memory_index()
+        self.assertIn("# Project Memory", result)
+
+    def test_truncates_at_200_lines(self):
+        fd, path = tempfile.mkstemp(suffix=".md")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            for i in range(250):
+                f.write(f"line-{i}\n")
+        self.addCleanup(os.unlink, path)
+        with mock.patch.object(hooks, "_MEMORY_INDEX", Path(path)):
+            result = hooks._read_memory_index()
+        self.assertIn("truncated", result)
+        self.assertNotIn("line-220", result)
+
+
+class UserPromptSubmitTests(unittest.TestCase):
+    def _run(self, prompt: str) -> str:
+        payload = {"prompt": prompt}
+        captured = io.StringIO()
+        with mock.patch.object(sys, "stdout", captured):
+            hooks.user_prompt_submit(payload)
+        return captured.getvalue()
+
+    def test_trigger_we_decided_emits_hint(self):
+        out = self._run("we decided to use ulid for loop ids")
+        self.assertTrue(out)
+        data = json.loads(out)
+        self.assertIn("project-memory hint", data["hookSpecificOutput"]["additionalContext"])
+
+    def test_trigger_remember_emits_hint(self):
+        out = self._run("remember the presigned URL TTL is 60s")
+        self.assertTrue(out)
+        data = json.loads(out)
+        self.assertIn("additionalContext", data["hookSpecificOutput"])
+
+    def test_trigger_always_emits_hint(self):
+        out = self._run("always use node:test not jest in this project")
+        self.assertTrue(out)
+
+    def test_trigger_from_now_on_emits_hint(self):
+        out = self._run("from now on prefix env vars with LOOPER_")
+        self.assertTrue(out)
+
+    def test_neutral_prompt_silent(self):
+        out = self._run("can you explain the auth middleware")
+        self.assertEqual(out, "")
+
+    def test_empty_prompt_silent(self):
+        out = self._run("")
+        self.assertEqual(out, "")
+
+    def test_hint_points_to_project_memory(self):
+        out = self._run("the team prefers presigned urls over proxy")
+        data = json.loads(out)
+        ctx = data["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("project-memory", ctx)
+        self.assertIn(".claude/memory/", ctx)
+
+
+class SessionStartMemoryTests(unittest.TestCase):
+    def _run_session_start(self, memory_content: str | None) -> tuple[str, str]:
+        fd_out, out_path = tempfile.mkstemp()
+        os.close(fd_out)
+        captured_out = io.StringIO()
+        captured_err = io.StringIO()
+
+        if memory_content is not None:
+            fd_mem, mem_path = tempfile.mkstemp(suffix=".md")
+            with os.fdopen(fd_mem, "w", encoding="utf-8") as f:
+                f.write(memory_content)
+            index_path = Path(mem_path)
+        else:
+            index_path = Path("/no/such/MEMORY.md")
+
+        graphify_missing = Path("/no/such/graphify.json")
+
+        with mock.patch.object(hooks, "_MEMORY_INDEX", index_path), \
+             mock.patch.object(sys, "stdout", captured_out), \
+             mock.patch.object(sys, "stderr", captured_err), \
+             mock.patch("subprocess.run") as mock_run, \
+             mock.patch.object(hooks, "PROJECT_ROOT", Path(tempfile.gettempdir())):
+            mock_run.return_value = mock.Mock(stdout=".claude/scripts/git-hooks\n", returncode=0)
+            hooks.session_start({})
+
+        if memory_content is not None:
+            os.unlink(mem_path)
+
+        return captured_out.getvalue(), captured_err.getvalue()
+
+    def test_memory_index_injected_when_present(self):
+        out, _ = self._run_session_start("# Project Memory\n\n## Index\n- [Foo](foo.md) — a decision\n")
+        self.assertTrue(out.strip())
+        data = json.loads(out.strip())
+        ctx = data["hookSpecificOutput"]["additionalContext"]
+        self.assertIn("Project memory", ctx)
+        self.assertIn("# Project Memory", ctx)
+
+    def test_no_output_when_memory_file_missing(self):
+        out, _ = self._run_session_start(None)
+        self.assertEqual(out.strip(), "")
+
+    def test_hook_event_name_correct(self):
+        out, _ = self._run_session_start("# Project Memory\n")
+        data = json.loads(out.strip())
+        self.assertEqual(data["hookSpecificOutput"]["hookEventName"], "SessionStart")
+
+
+class ProjectMemoryFlushNudgeTests(unittest.TestCase):
+    def _run_nudge(self, transcript_lines: list[dict], memory_files: list[tuple[str, float]]) -> str:
+        fd, transcript_path = tempfile.mkstemp(suffix=".jsonl")
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            for line in transcript_lines:
+                f.write(json.dumps(line) + "\n")
+
+        memory_dir = Path(tempfile.mkdtemp())
+        for name, age_offset in memory_files:
+            fpath = memory_dir / name
+            fpath.write_text("content", encoding="utf-8")
+            now = Path(transcript_path).stat().st_mtime
+            os.utime(fpath, (now + age_offset, now + age_offset))
+
+        captured_err = io.StringIO()
+        with mock.patch.object(hooks, "PROJECT_ROOT", memory_dir.parent), \
+             mock.patch.object(sys, "stderr", captured_err):
+            # Redirect PROJECT_ROOT so that .claude/memory points to our temp dir
+            temp_claude = memory_dir.parent / ".claude" / "memory"
+            temp_claude.parent.mkdir(parents=True, exist_ok=True)
+            if not temp_claude.exists():
+                temp_claude.symlink_to(memory_dir)
+            hooks._project_memory_flush_nudge(transcript_path)
+
+        os.unlink(transcript_path)
+        import shutil
+        shutil.rmtree(str(memory_dir.parent / ".claude"), ignore_errors=True)
+        return captured_err.getvalue()
+
+    def test_triggers_no_writes_emits_nudge(self):
+        lines = [
+            {"role": "user", "content": "we decided to store audio in S3"},
+            {"role": "assistant", "content": "Got it."},
+        ]
+        out = self._run_nudge(lines, memory_files=[])
+        self.assertIn("project-memory", out)
+        self.assertIn("/remember", out)
+
+    def test_triggers_with_recent_write_silent(self):
+        lines = [
+            {"role": "user", "content": "we decided to use ulid"},
+            {"role": "assistant", "content": "Saved."},
+        ]
+        out = self._run_nudge(lines, memory_files=[("decision_foo.md", 0)])
+        self.assertEqual(out, "")
+
+    def test_no_triggers_silent(self):
+        lines = [
+            {"role": "user", "content": "what does the auth route do"},
+            {"role": "assistant", "content": "It validates JWTs."},
+        ]
+        out = self._run_nudge(lines, memory_files=[])
+        self.assertEqual(out, "")
+
+
 class AreaForPathTests(unittest.TestCase):
     """Lock the post-rewrite path → wiki-area contract."""
 

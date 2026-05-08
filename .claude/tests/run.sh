@@ -37,8 +37,8 @@ if [ $found -lt $MIN_TEST_FILES ]; then
   exit 1
 fi
 
-# This repo has known test count = 35 in hooks_test.py. Pin it.
-EXPECTED_MIN_TOTAL=35
+# This repo has known test count = 35 in hooks_test.py + 18 for project-memory handlers.
+EXPECTED_MIN_TOTAL=51
 if [ "$total_tests" -lt "$EXPECTED_MIN_TOTAL" ]; then
   echo "FAIL: $total_tests tests ran (expected >= $EXPECTED_MIN_TOTAL) — silent test loss?" >&2
   exit 1
