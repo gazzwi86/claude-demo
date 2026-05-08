@@ -37,8 +37,8 @@ if [ $found -lt $MIN_TEST_FILES ]; then
   exit 1
 fi
 
-# This repo has known test count = 35 in hooks_test.py + 18 for project-memory handlers.
-EXPECTED_MIN_TOTAL=51
+# This repo has known test count = 54 in hooks_test.py (including 3 new B2 tests).
+EXPECTED_MIN_TOTAL=54
 if [ "$total_tests" -lt "$EXPECTED_MIN_TOTAL" ]; then
   echo "FAIL: $total_tests tests ran (expected >= $EXPECTED_MIN_TOTAL) — silent test loss?" >&2
   exit 1
@@ -46,6 +46,31 @@ fi
 
 if [ $fail -gt 0 ]; then
   echo "FAIL: $fail test file(s) failed" >&2
+  exit 1
+fi
+
+echo
+echo "==> shell integration tests under .claude/tests/"
+shell_fail=0
+shell_found=0
+while IFS= read -r s; do
+  [ -z "$s" ] && continue
+  shell_found=$((shell_found + 1))
+  echo "  -> $s"
+  if bash "$s"; then
+    echo "  PASS: $s"
+  else
+    echo "  FAIL: $s" >&2
+    shell_fail=$((shell_fail + 1))
+  fi
+done < <(find .claude/tests -maxdepth 1 -type f -name "*.sh" ! -name "run.sh" 2>/dev/null | sort)
+
+if [ $shell_found -eq 0 ]; then
+  echo "  (none found)"
+fi
+
+if [ $shell_fail -gt 0 ]; then
+  echo "FAIL: $shell_fail shell test(s) failed" >&2
   exit 1
 fi
 
