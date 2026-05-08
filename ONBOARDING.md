@@ -85,10 +85,11 @@ The entire rewrite — new app, full `.claude/` harness, 15 wiki pages, Graphify
 │   ├── frontend-component.md ← paths: apps/web/components/**/*.tsx
 │   ├── fastify-route.md   ← paths: apps/api/src/routes/**/*.ts
 │   └── markdown.md        ← paths: docs/**, *.md
-├── commands/              ← slash commands: /setup, /anatomy, /open-pr …
-├── skills/                ← project-specific skills: /looper-add-effect …
+├── commands/              ← slash commands: /setup, /anatomy, /open-pr, /cc-audit …
+├── skills/                ← project-specific skills: /looper-add-effect, write-*, cc-audit-* …
 ├── agents/                ← sub-agent definitions
-├── plans/                 ← plan-mode artefacts (Shift+Tab)
+├── memory/                ← committed team-shared memory (project facts)
+├── plans/                 ← plan-mode artefacts (Shift+Tab); .gitkeep tracked, individual plans gitignored
 ├── scripts/
 │   ├── hooks.py           ← single dispatcher for every hook event
 │   ├── statusline.sh      ← status bar above the prompt
@@ -96,7 +97,7 @@ The entire rewrite — new app, full `.claude/` harness, 15 wiki pages, Graphify
 │   └── git-hooks/         ← pre-commit, pre-push (wired via core.hooksPath)
 ├── tests/
 │   ├── run.sh             ← single entry point: Python + shell tests
-│   ├── hooks_test.py      ← 54 unit tests for hooks.py
+│   ├── hooks_test.py      ← 76 unit tests for hooks.py
 │   └── test_audit_loop.sh ← integration test: mark-stale → check-fresh round trip
 └── examples/
     └── expensive-hooks.json  ← opt-in config for per-edit LLM hooks
@@ -366,7 +367,7 @@ The `PreToolUse:Glob|Grep` hook injects a nudge ("graphify index exists — cons
 
 ### Plan mode (`Shift+Tab`)
 
-Toggles plan-review mode. Claude proposes a plan before executing; you approve or redirect. Plans persist to `.claude/plans/` so they survive session compaction.
+Toggles plan-review mode. Claude proposes a plan before executing; you approve or redirect. Plans persist to `.claude/plans/` so they survive session compaction. The dir is tracked via `.gitkeep`; individual plan files are gitignored (per-developer scratchpads, not team artefacts).
 
 ```text
 Shift+Tab → "add a /sessions route to persist pad config across reloads"
@@ -450,11 +451,11 @@ Skip with `git push --no-verify` when the CLI isn't available (CI, offline).
 
 | Surface | Location | Runner | Count |
 |---|---|---|---|
-| App unit tests | `apps/api/tests/`, `packages/shared/` | `pnpm test` (Vitest) | 54 specs |
+| App unit tests | `apps/api/tests/`, `packages/shared/`, `apps/web/lib/` | `pnpm test` (Vitest) | 38 specs (24 api + 12 shared + 2 web) |
 | Component tests | `apps/web/components/**/*.test.tsx` | `pnpm test` (Vitest + RTL) | — |
 | Playwright behavioural | `apps/web/e2e/*.spec.ts` | `pnpm e2e` | 12 specs |
 | Visual regression | `apps/web/e2e/visual-tour.spec.ts` | `pnpm e2e:visual` | 12 screenshots |
-| Hook unit tests | `.claude/tests/hooks_test.py` | `bash .claude/tests/run.sh` | 54 tests |
+| Hook unit tests | `.claude/tests/hooks_test.py` | `bash .claude/tests/run.sh` | 76 tests |
 | Hook integration test | `.claude/tests/test_audit_loop.sh` | `bash .claude/tests/run.sh` | 1 test |
 
 Run everything:

@@ -9,7 +9,7 @@ parent: cc-audit
 
 Audits the code-navigation tool stack. Sister skill to cc-audit-settings (settings shape) and cc-audit-permissions (allow/ask/deny). This skill owns *navigation tooling correctness*.
 
-Created from v4 benchmark findings (`.claude/reports/benchmark-v4/COUNCIL.md`).
+Created from benchmark findings (`.claude/reports/BENCHMARK.md`).
 
 ## Checks
 

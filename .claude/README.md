@@ -8,33 +8,42 @@ team is here to learn.
 
 ```
 .claude/
-├── settings.json         Hooks, permissions, env vars, MCP servers.
-│                         Checked-in, applies to everyone using the repo.
-├── settings.local.json   Per-user overrides. Gitignored. Holds dev-only
-│                         secrets, LLM backend choice for the Stop hook,
-│                         extra permission allows.
+├── settings.json         Hooks, permissions, env vars, MCP servers, statusLine,
+│                         plansDirectory. Checked-in, applies to everyone.
+├── settings.local.json   Per-user overrides. Gitignored. Per-machine secrets,
+│                         LLM backend choice for the Stop hook, extra allows.
 │
 ├── scripts/              See scripts/README.md.
 │   ├── hooks.py          Single dispatcher for all hook events.
+│   ├── modules/          Per-concern split: secrets, security, pii, lifecycle, stop, …
 │   ├── statusline.sh     Custom statusline shown above the input box.
+│   ├── setup-graphify.sh Installs the graphify knowledge graph (optional).
 │   └── git-hooks/        pre-commit, pre-push wired via core.hooksPath.
 │
 ├── tests/                See tests/README.md.
-│   ├── hooks_test.py     35 specs for hooks.py — including the path
-│   │                     mapping (area_for_path) that drives docs/wiki/.
-│   └── run.sh            Test runner.
+│   ├── hooks_test.py     76 unit tests for hooks.py (incl. area_for_path mapping).
+│   ├── test_audit_loop.sh Integration test: mark-stale → check-fresh round trip.
+│   └── run.sh            Single entry point. Asserts ≥35 tests run.
 │
 ├── rules/                See rules/README.md.
-│   ├── code-style.md     2-space, double quotes, const-by-default, etc.
-│   ├── testing.md        Every route → test, deterministic data, etc.
-│   ├── security.md       No hardcoded secrets, sanitise input, etc.
-│   └── markdown.md       Markdown formatting conventions.
+│   ├── code-style.md     Global. 2-space, double quotes, const-by-default.
+│   ├── security.md       Global. No hardcoded secrets, no eval, sanitise input.
+│   ├── testing.md        Global fallback. Specific assertions, no network.
+│   ├── markdown.md       paths: docs/**, *.md.
+│   ├── python-tooling.md uv only — no pip. Enforced by hook.
+│   ├── testing-fastify.md  paths: apps/api/tests/**.
+│   ├── testing-rtl.md      paths: apps/web/**/*.test.tsx.
+│   ├── frontend-component.md paths: apps/web/components/**.
+│   └── fastify-route.md    paths: apps/api/src/routes/**.
 │
 ├── commands/             See commands/README.md.
 │   ├── add-endpoint.md   /add-endpoint api|web <resource>
 │   ├── anatomy.md        /anatomy refresh — regenerates docs/wiki
+│   ├── cc-audit.md       /cc-audit — strict-by-default audit + scaffolder
+│   ├── cc-scaffold.md    /cc-scaffold — research-driven workflow scaffolder
 │   ├── check-health.md   /check-health — boots api, hits /health, kills it
-│   ├── open-pr.md        /open-pr — clean, security-check, push, open PR
+│   ├── open-pr.md        /open-pr — review pipeline + push + open PR
+│   ├── remember.md       /remember — save fact to project or user memory
 │   └── setup.md          /setup — wire git hooks, configure local LLM
 │
 ├── agents/               See agents/README.md.
@@ -42,22 +51,34 @@ team is here to learn.
 │   └── test-writer.md    Generates tests for existing code
 │
 ├── skills/               See skills/README.md.
-│   └── 20-questions/     Custom skill (asks 20 questions, narrows topic).
+│   ├── looper-add-effect/  Project skill: extend the Web Audio chain.
+│   ├── write-{api-route,component,vitest-test,rtl-test,playwright-test}/
+│   │                       Stack-aware "how to add an X" guides.
+│   ├── project-memory/     Routes /remember to project- vs user-level memory.
+│   ├── cc-audit/ + cc-audit-<area>/ × 10
+│   │                       Strict-by-default .claude/ audit; fan-out + council.
+│   └── cc-scaffold/        Companion to cc-audit; researches stack + scaffolds.
 │
-├── plans/                Plan-mode artefacts. The big one is
-│                         the-project-itself-meaning-precious-valiant.md
-│                         — the plan that drove this whole rewrite.
+├── memory/               Team-shared, committed-to-git project memory.
+│   └── MEMORY.md         Index of facts (decisions, conventions, references).
 │
-└── report/               Council review of this harness setup.
+├── reports/              Living documents only.
+│   └── BENCHMARK.md      Tool-comparison decisions (jcodemunch/graphify/anatomy).
+│
+├── plans/                Plan-mode artefacts. Dir tracked via .gitkeep;
+│                         individual plan files gitignored (per-developer).
+│
+└── examples/
+    └── expensive-hooks.json  Opt-in config for per-edit LLM hooks.
 ```
 
 ## What to read first
 
-1. [`../CLAUDE.md`](../CLAUDE.md) — the top-level instructions Claude sees.
-2. [`settings.json`](settings.json) — what's actually wired up.
-3. [`scripts/hooks.py`](scripts/hooks.py) — the central dispatcher; every hook event lands here.
-4. [`plans/the-project-itself-meaning-precious-valiant.md`](plans/the-project-itself-meaning-precious-valiant.md) — the plan that produced this codebase.
-5. [`report/council-review.md`](report/council-review.md) — what 10 reviewers think of the harness setup.
+1. [`../CLAUDE.md`](../CLAUDE.md) — top-level instructions Claude sees on every turn.
+2. [`../ONBOARDING.md`](../ONBOARDING.md) — the workshop runbook; the canonical tour.
+3. [`settings.json`](settings.json) — what's actually wired up.
+4. [`scripts/hooks.py`](scripts/hooks.py) — the central dispatcher; every hook event lands here.
+5. [`reports/BENCHMARK.md`](reports/BENCHMARK.md) — why we picked jcodemunch over graphify/semble.
 
 ## How the pieces connect
 
@@ -80,26 +101,29 @@ team is here to learn.
    │  pipe through scripts/hooks.py:              │
    │                                              │
    │    PreToolUse  → check_no_secrets,           │
-   │                  check_uv_over_pip           │
+   │                  graphify_hint,              │
+   │                  python_tooling (uv only)    │
    │    PostToolUse → mark_anatomy_stale,         │
-   │                  claude_review (Opus -p),    │
-   │                  check_circular_deps (off)   │
-   │    Stop        → drift detection (local LLM) │
-   │    SessionStart→ remind to /setup            │
+   │                  check_eslint_security       │
+   │    Stop        → drift detector (local LLM), │
+   │                  task-completeness (prompt)  │
+   │    SessionStart→ memory loader, /setup nudge │
+   │    UserPromptSubmit → memory save-trigger    │
    └──────────────────────────────────────────────┘
                   │
                   ▼
    ┌──────────────────────────────────────────────┐
    │  Per-area wiki pages under docs/wiki/        │
    │  get stale-marked when their files change.   │
-   │  /anatomy refresh regenerates them.          │
+   │  pre-commit runs /anatomy refresh; pre-push  │
+   │  blocks if any stale markers remain.         │
    └──────────────────────────────────────────────┘
 ```
 
-## What ran during the rewrite
+## Demo highlights
 
-- `check_no_secrets` blocked a literal `password: "supersecret"` in a test fixture. ✓
-- `mark_anatomy_stale` created stale-marker pages for `web-audio`, `web-pages`, `api-routes`, etc. ✓
-- The first cut of `area_for_path` produced bogus pages (`web-tsconfig.json.md`, `api-server.ts.md`); fixed by gating on `len(parts) >= 4`. The hooks tests in `tests/hooks_test.py` lock that contract.
-- Plan mode produced `plans/the-project-itself-meaning-precious-valiant.md`, which drove all 12 commits.
-- Agent teams (spawned with `isolation: "worktree"`) were attempted; both teammates blocked on permission prompts and the work fell back to the main session. Documented in [`../STATUS.md`](../STATUS.md).
+- `check_no_secrets` blocks literal passwords/tokens at write time (`exit 2`).
+- `mark_anatomy_stale` writes `<!-- stale: ... -->` into the affected wiki page; `pre-commit` runs `/anatomy refresh` to regenerate.
+- `python_tooling` deny-lists `pip`/`pip3` patterns at PreToolUse — uv only.
+- `cc-audit` self-audits this repo's config; `cc-scaffold` researches and scaffolds the same patterns into other repos.
+- The hook tests in `tests/hooks_test.py` lock the `area_for_path` contract that drives `docs/wiki/` regeneration.

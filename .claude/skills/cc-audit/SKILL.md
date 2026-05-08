@@ -9,7 +9,6 @@ allowed-tools: ["Read", "Glob", "Grep", "Bash", "Write", "Edit", "AskUserQuestio
 # cc-audit — orchestrator
 
 Strict-by-default audit and scaffolder for any repo's `.claude/` configuration.
-Source plan: `/Users/gareth/Sites/claude-demo/.claude/plans/proud-whistling-rose.md`.
 
 ## Distribution
 

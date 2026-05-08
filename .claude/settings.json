@@ -11,19 +11,7 @@
   },
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "teammateMode": "auto",
-    "CAVEMAN_DEFAULT_MODE": "lite"
-  },
-  "extraKnownMarketplaces": {
-    "caveman": {
-      "source": {
-        "source": "github",
-        "repo": "JuliusBrussee/caveman"
-      }
-    }
-  },
-  "enabledPlugins": {
-    "caveman@caveman": true
+    "teammateMode": "auto"
   },
   "permissions": {
     "allow": [
@@ -97,7 +85,7 @@
             "timeout": 5000
           }
         ]
-      },
+      }
     ],
     "PostToolUse": [
       {

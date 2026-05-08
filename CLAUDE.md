@@ -47,9 +47,9 @@ before assuming a convention from this top-level file.
 
 ## Conventions (top-level — packages override)
 
-- TypeScript everywhere except `infra/` (Terraform HCL)
+- TypeScript everywhere except `infra/` (Terraform HCL) and `.claude/scripts/` (Python)
 - ESM modules, `"type": "module"` in every package.json
-- Vitest for unit + component tests; Playwright for E2E and visual regression
+- Vitest for unit + component tests (Fastify routes via `app.inject()`); Playwright for E2E and visual regression
 - Zod schemas live in `@looper/shared` and are imported by both web & api
 - All audio processing runs **in the browser** (no server-side audio)
 - All AWS access goes through LocalStack / DynamoDB Local in dev — never hit real AWS in CI
