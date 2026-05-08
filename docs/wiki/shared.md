@@ -66,3 +66,5 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 ## packages/shared/src/schemas.test.ts
 
 **Description:** 12 Vitest contract tests verifying that each schema accepts valid inputs and rejects invalid ones. Acts as a living spec — if a schema boundary changes, these tests break first.
+
+<!-- stale: packages/shared/src/schemas.ts --> <!-- at: 2026-05-08T11:16:20.067178+00:00 -->

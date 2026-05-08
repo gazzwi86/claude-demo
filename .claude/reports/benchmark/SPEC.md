@@ -73,5 +73,29 @@ files_that_need_changing:
 proposed_change: |
   Brief code sketch here
 
+quality:
+  typecheck: pass|fail|skipped
+  tests_pass: yes|no|skipped
+  oracle_pass: yes|no|skipped
+  oracle_assertion: "bash one-liner that ran"
+  diff_vs_c0: identical|diverged|not_applicable
+  divergence_note: "optional"
+
 ---END METRICS---
 ```
+
+## Behavioural Oracles (v4 addition)
+
+Each task declares a deterministic post-edit assertion. Run after `pnpm typecheck && pnpm test`.
+A config that compiles + passes existing tests but fails the oracle = `quality_verdict: fail`.
+
+| Task | Oracle (run from repo root after edit) |
+|------|----------------------------------------|
+| T1 padnode_fadein | `grep -qE 'fadeIn\s*\(' apps/web/lib/audio/padNode.ts && grep -q 'linearRampToValueAtTime' apps/web/lib/audio/padNode.ts` |
+| T2 engine_playing_count | `grep -qE 'getPlayingCount\s*\(' apps/web/lib/audio/engine.ts && grep -qE 'getPadStates\s*\(' apps/web/lib/audio/engine.ts` |
+| T3 loop_tags | `grep -qE 'tags:\s*z\.array' packages/shared/src/schemas.ts && grep -q 'tags' apps/api/src/db/loops.ts` |
+| T4 loops_search | `grep -qE '/loops/search\|searchUserLoops' apps/api/src/routes/loops.ts apps/api/src/db/loops.ts` |
+| T5 effects_bypass | `grep -q 'bypass' apps/web/lib/audio/effects.ts && grep -q 'setBypass' apps/web/lib/audio/effects.ts && grep -q 'bypass' apps/web/components/studio/EffectsRack.tsx` |
+
+Each oracle is a single bash expression returning exit 0 (pass) or non-zero (fail).
+Configs that only *propose* changes (no edits applied) record `oracle_pass: skipped`.

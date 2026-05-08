@@ -67,3 +67,5 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 - `@aws-sdk/client-s3` (S3Client, Put/Get/DeleteObjectCommand)
 - `@aws-sdk/s3-request-presigner` (getSignedUrl)
 - `../config.js`
+
+<!-- stale: apps/api/src/services/loopService.ts --> <!-- at: 2026-05-08T11:18:05.945689+00:00 -->

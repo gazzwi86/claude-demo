@@ -55,3 +55,5 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 
 **Description:** Animated RMS level meter. Polls a provided `getRms()` callback in a `requestAnimationFrame` loop and renders a single coloured bar proportional to level. Used in the TransportBar (master level) and LoopRecorder (input level).
 
+
+<!-- stale: apps/web/components/studio/EffectsRack.tsx --> <!-- at: 2026-05-08T11:19:39.437839+00:00 -->

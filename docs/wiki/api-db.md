@@ -70,3 +70,5 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 - `../errors.js` (NotFoundError)
 
 <!-- stale: apps/api/src/db/CLAUDE.md --> <!-- at: 2026-05-08T05:03:25.297911+00:00 -->
+
+<!-- stale: apps/api/src/db/loops.ts --> <!-- at: 2026-05-08T11:16:38.617069+00:00 -->

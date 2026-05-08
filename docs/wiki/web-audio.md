@@ -151,3 +151,7 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 
 
 <!-- stale: apps/web/lib/audio/engine.ts --> <!-- at: 2026-05-08T05:07:39.357122+00:00 -->
+
+<!-- stale: apps/web/lib/audio/padNode.ts --> <!-- at: 2026-05-08T11:12:47.809807+00:00 -->
+
+<!-- stale: apps/web/lib/audio/effects.ts --> <!-- at: 2026-05-08T11:20:01.339202+00:00 -->
