@@ -100,15 +100,15 @@ def area_for_path(rel_path: str) -> Optional[str]:
         app = parts[1]
         top = parts[2]
         if app == "web":
-            if top == "lib" and parts[3] == "audio":
+            if top == "lib" and len(parts) > 4 and parts[3] == "audio":
                 return "web-audio"
-            if top == "components":
+            if top == "components" and len(parts) > 4:
                 return f"web-{parts[3]}"
             if top == "app":
                 return "web-pages"
             return f"web-{top}"
         if app == "api":
-            if top == "src":
+            if top == "src" and len(parts) > 4:
                 return f"api-{parts[3]}"
             if top == "tests":
                 return "api-tests"

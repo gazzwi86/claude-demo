@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Discover and run sibling tests for .claude/ scaffolding.
+# Discover and run tests for .claude/ scaffolding.
 #
 # Convention:
-#   - Python unit tests sit next to the script under test as `<name>_test.py`
-#     (e.g. .claude/scripts/hooks.py + .claude/scripts/hooks_test.py).
+#   - Python unit tests live in .claude/tests/ as `<name>_test.py`
+#     (e.g. .claude/scripts/hooks.py is tested by .claude/tests/hooks_test.py).
 #   - Skill / agent / command evals sit next to their .md as `<name>.eval.md`
 #     and are listed but NOT executed automatically (they're prompts, not code).
 #

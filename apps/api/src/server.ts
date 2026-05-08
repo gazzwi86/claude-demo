@@ -4,6 +4,7 @@ import cors from "@fastify/cors";
 import { config } from "./config.js";
 import { registerErrorHandler } from "./middleware/errorHandler.js";
 import authRoutes from "./routes/auth.js";
+import loopsRoutes from "./routes/loops.js";
 
 export async function buildServer() {
   const app = Fastify({
@@ -25,6 +26,7 @@ export async function buildServer() {
   app.get("/health", async () => ({ ok: true, ts: new Date().toISOString() }));
 
   await app.register(authRoutes);
+  await app.register(loopsRoutes);
 
   return app;
 }
