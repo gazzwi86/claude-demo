@@ -1,3 +1,7 @@
+---
+name: Code Style
+---
+
 ## Code Style Rules
 
 - Use CommonJS require/exports, not ESM import/export

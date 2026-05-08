@@ -1,9 +1,8 @@
 ---
-
-paths: ["./*.md"]
-
-description: Rules for markdown files
-
+name: Markdown Style
+paths:
+  - "docs/**"
+  - "*.md"
 ---
 
 # Laws

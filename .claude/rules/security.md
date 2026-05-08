@@ -1,3 +1,7 @@
+---
+name: Security
+---
+
 ## Security Rules
 
 - Never hardcode API keys, tokens, or passwords in source files
