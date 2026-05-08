@@ -25,6 +25,7 @@ Each cluster is independent and opt-in via per-cluster confirmation.
 | `skills` | Stack-aware skeletons under `.claude/skills/`: `write-ui`, `write-api`, `write-test`. Frontmatter + body shaped by detected stack. |
 | `commands` | `.claude/commands/open-pr.md`, `.claude/commands/check-health.md`. |
 | `agents` | `.claude/agents/api-designer.md`, `.claude/agents/test-writer.md`. |
+| `complexity` | Stack-appropriate complexity / maintainability gate wired into `.claude/scripts/git-hooks/pre-commit`. Researched at apply time — eslint-plugin-sonarjs for TS/JS, ruff rule C901 + max-complexity for Python, clippy `cognitive_complexity` for Rust, etc. |
 
 ## 5-step orchestration flow
 
@@ -80,6 +81,15 @@ Topics to research per cluster:
 - **commands**: PR workflow tools (gh / lab / etc), health-check
   endpoint conventions for the detected framework.
 - **agents**: nothing stack-dependent; ship verbatim.
+- **complexity**: research the canonical complexity / maintainability
+  tool for the detected stack — for TS/JS prefer
+  `eslint-plugin-sonarjs` (cognitive-complexity ≤ 15) plus the built-in
+  `complexity` rule (cyclomatic ≤ 10). For Python prefer ruff rule
+  `C901` (max-complexity 10). For Rust prefer clippy
+  `cognitive_complexity`. The agent picks current-best from research
+  rather than a hardcoded list, then wires the chosen tool into
+  `.claude/scripts/git-hooks/pre-commit` with thresholds documented
+  inline.
 
 ### 3. Propose
 

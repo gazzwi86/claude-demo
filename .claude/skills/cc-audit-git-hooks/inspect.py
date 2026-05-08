@@ -93,7 +93,50 @@ def inspect(repo: Path) -> dict:
             ""
         ))
 
+    detect_complexity_gate(repo, findings)
+
     return {"area": AREA, "version": SCHEMA, "findings": findings, "skipped": skipped}
+
+
+COMPLEXITY_KEYWORDS = (
+    # JS/TS
+    "complexity", "cognitive-complexity", "sonarjs",
+    # Python
+    "radon", "mccabe", "max-complexity", "cyclomatic",
+    # Rust
+    "cognitive-complexity",
+    # generic
+    "lizard",
+)
+
+
+def detect_complexity_gate(repo: Path, findings: list) -> None:
+    """Detect whether the pre-commit hook enforces a complexity / maintainability gate.
+
+    The gate is stack-specific (eslint-plugin-sonarjs for TS/JS, ruff
+    rule C901 / radon for Python, clippy lints for Rust, etc) so this
+    detector only checks for the *presence* of any complexity-related
+    keyword in the pre-commit script. Remediation routes to
+    `/cc-scaffold --cluster=complexity` which researches the detected
+    stack at apply time and scaffolds the appropriate gate.
+    """
+    pre_commit = repo / ".claude" / "scripts" / "git-hooks" / "pre-commit"
+    if not pre_commit.exists():
+        return  # the missing-pre-commit case is already covered above
+    try:
+        text = pre_commit.read_text(encoding="utf-8").lower()
+    except OSError:
+        return
+    if any(k in text for k in COMPLEXITY_KEYWORDS):
+        return
+    findings.append(finding(
+        "git-hooks.no-complexity-gate", "low",
+        "pre-commit hook does not enforce a complexity / maintainability gate",
+        ".claude/scripts/git-hooks/pre-commit: no reference to complexity, sonarjs, radon, mccabe, or similar",
+        {"kind": "scaffold", "patch": "run `/cc-scaffold --cluster=complexity` — researches current best-practice complexity tooling for the detected stack and wires it into pre-commit"},
+        "A maintainability gate stops Claude (and humans) from accreting hard-to-understand code. The right tool depends on the stack, so cc-scaffold researches it at apply time rather than shipping a fixed plugin choice.",
+        "Remove the scaffolded eslint config / ruff rule / equivalent and the pre-commit step."
+    ))
 
 
 def main(argv):
