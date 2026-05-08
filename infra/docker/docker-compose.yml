@@ -12,13 +12,13 @@ services:
     volumes:
       - ./.data/ddb:/home/dynamodblocal/data
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:8000 || exit 1"]
+      test: ["CMD-SHELL", "curl -sS http://localhost:8000 -o /dev/null || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 10
 
   localstack:
-    image: localstack/localstack:latest
+    image: localstack/localstack:3
     container_name: looper-ls
     environment:
       SERVICES: s3
@@ -31,7 +31,7 @@ services:
     volumes:
       - ./.data/ls:/var/lib/localstack
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:4566/_localstack/health | grep -q '\"s3\": \"available\"' || exit 1"]
+      test: ["CMD-SHELL", "curl -sS http://localhost:4566/_localstack/health | grep -qE '\"s3\": \"(running|available)\"' || exit 1"]
       interval: 5s
       timeout: 3s
       retries: 20

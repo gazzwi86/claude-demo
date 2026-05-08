@@ -23,7 +23,10 @@ function setAuthCookie(reply: FastifyReply, token: string): void {
   reply.setCookie(AUTH_COOKIE_NAME, token, { ...cookieOpts, secure: config.isProd });
 }
 
-const AUTH_RATE_LIMIT = { max: 5, timeWindow: "1 minute" };
+const AUTH_RATE_LIMIT = {
+  max: process.env.DDB_USE_STUB === "1" ? 10_000 : 5,
+  timeWindow: "1 minute",
+};
 
 export default async function authRoutes(app: FastifyInstance): Promise<void> {
   app.post("/auth/signup", { config: { rateLimit: AUTH_RATE_LIMIT } }, async (request, reply) => {

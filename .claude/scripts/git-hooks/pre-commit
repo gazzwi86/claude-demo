@@ -22,7 +22,7 @@ if [ -n "$WEB_STAGED" ]; then
     echo "pre-commit: complexity gate (apps/web)..." >&2
     REL_FILES=$(echo "$WEB_STAGED" | sed 's|^apps/web/||')
     # shellcheck disable=SC2086
-    if ! (cd apps/web && npx --no eslint -c eslint.complexity.config.js $REL_FILES); then
+    if ! (cd apps/web && npx --no-install eslint -c eslint.complexity.config.js $REL_FILES); then
       echo "pre-commit: complexity gate FAILED — refactor or run with --no-verify" >&2
       exit 1
     fi

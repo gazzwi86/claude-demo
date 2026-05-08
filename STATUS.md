@@ -32,9 +32,8 @@ pnpm exec -F @looper/web playwright test
                         - 6 auth-pages.spec (login/signup/home + offline-error path)
                         - 6 studio.spec (gate -> active -> load sample -> toggle ->
                                          effects rack -> mute -> stop all)
-python3 .claude/tests/hooks_test.py    35/35 OK
-                        (TokenEstimate, LastMessagesExcerpt, BuildDriftPrompt,
-                         ParseDriftVerdict, StopHookFlow, AreaForPath, IsTracked)
+python3 .claude/tests/hooks_test.py    54/54 OK
+bash .claude/tests/test_audit_loop.sh  OK
 ```
 
 ## Architecture

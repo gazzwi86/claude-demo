@@ -80,6 +80,21 @@
             "type": "command",
             "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py pre-tool-use check-no-secrets",
             "timeout": 5000
+          },
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py pre-tool-use check-uv-over-pip",
+            "timeout": 5000
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py pre-tool-use check-uv-over-pip",
+            "timeout": 5000
           }
         ]
       },

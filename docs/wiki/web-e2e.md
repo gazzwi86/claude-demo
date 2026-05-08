@@ -24,7 +24,7 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 
 ## apps/web/e2e/auth-live.spec.ts
 
-**Description:** Live integration tests that hit the real API on port 3001 + DynamoDB Local. Requires the full local stack: `pnpm localstack:up && pnpm localstack:seed && pnpm dev`. Uses the test user seeded by `infra/docker/init/seed.sh` (`test@test.com` / `testtest` — 8-character password matching `PasswordSchema` min). Covers 5 specs: login with seeded user redirects to `/studio` or `/dashboard`; wrong password shows a visible non-empty alert and stays on login; authenticated user can navigate directly to `/studio` and see `<main>`; unauthenticated user visiting `/studio` is redirected to `/login`; logout (via button or link matching `/log.?out|sign.?out/i`) clears the session and re-protects `/studio`.
+**Description:** Live integration tests that hit the real API on port 3001 + DynamoDB Local. Requires the full local stack: `pnpm localstack:up && pnpm localstack:seed && pnpm dev`. Uses the test user seeded by `infra/docker/init/seed.sh` (`test@test.com` / `testtest` — 8-character password matching `PasswordSchema` min). Covers 5 specs: login with seeded user redirects to `/studio` or `/dashboard` (10s timeout); wrong password surfaces a visible non-empty `role="alert"` and stays off `/studio|/dashboard`; authenticated user can navigate directly to `/studio` and see `<main>`; unauthenticated user visiting `/studio` is redirected to `/login`; logout navigates to `/account`, clicks the button matching `/sign.?out/i`, then verifies redirect to `/login` and that `/studio` is protected again.
 
 ---
 

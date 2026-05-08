@@ -5,7 +5,7 @@ description: Project-scoped memory for the claude-demo repo. Invoke when the use
 
 # Project memory
 
-This skill governs writes to `.claude/memory/` — the team-shared, committed-to-git memory layer for this repo. It works alongside the user-level auto-memory at `~/.claude/projects/-Users-gareth-Sites-claude-demo/memory/`. Both load every session; on conflict for this repo, project memory wins.
+This skill governs writes to `.claude/memory/` — the team-shared, committed-to-git memory layer for this repo. It works alongside the user-level auto-memory at `~/.claude/projects/*/memory/`. Both load every session; on conflict for this repo, project memory wins.
 
 ## Routing — the discriminator
 

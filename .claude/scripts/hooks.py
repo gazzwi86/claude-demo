@@ -23,11 +23,12 @@ import sys
 
 from modules import common
 from modules import secrets, graphify, wiki, eslint, stop
-from modules import memory, lifecycle, circular_deps, claude_review
+from modules import memory, lifecycle, circular_deps, claude_review, python_tooling
 
 PRE_TOOL_USE_CHECKS = {
-    "check-no-secrets": [secrets.check_no_secrets],
-    "graphify-hint":    [graphify.graphify_hint],
+    "check-no-secrets":   [secrets.check_no_secrets],
+    "graphify-hint":      [graphify.graphify_hint],
+    "check-uv-over-pip":  [python_tooling.check_uv_over_pip],
 }
 
 POST_TOOL_USE_CHECKS = {

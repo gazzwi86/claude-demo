@@ -4,3 +4,4 @@ __pycache__/
 plans/*
 !plans/.gitkeep
 scheduled_tasks.lock
+!*/README.md

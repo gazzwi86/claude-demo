@@ -58,6 +58,31 @@ aws $S3 s3api put-bucket-cors --bucket "$BUCKET" --cors-configuration '{
   }]
 }' >/dev/null
 
+echo "[seed] seeding test user (test@test.com / test)"
+TEST_USER_ID="00000000-0000-0000-0000-000000000001"
+TEST_EMAIL="test@test.com"
+# bcrypt hash of "testtest" (8 chars — matches PasswordSchema min(8))
+TEST_HASH='$2a$10$e.fXUb9LPHNOj8D1TSe87Og1F/AhqyQg9w0qJ.7jJTHGXjbNrodo2'
+_existing=$(aws $DDB dynamodb get-item \
+    --table-name looper_users \
+    --key "{\"pk\":{\"S\":\"USER#${TEST_USER_ID}\"},\"sk\":{\"S\":\"PROFILE\"}}" \
+    --query 'Item.pk.S' --output text 2>/dev/null)
+if [ "$_existing" = "USER#${TEST_USER_ID}" ]; then
+  echo "  - test user already exists"
+else
+  aws $DDB dynamodb put-item --table-name looper_users --item "{
+    \"pk\":          {\"S\": \"USER#${TEST_USER_ID}\"},
+    \"sk\":          {\"S\": \"PROFILE\"},
+    \"gsi_email_pk\":{\"S\": \"EMAIL#${TEST_EMAIL}\"},
+    \"id\":          {\"S\": \"${TEST_USER_ID}\"},
+    \"email\":       {\"S\": \"${TEST_EMAIL}\"},
+    \"displayName\": {\"S\": \"Test User\"},
+    \"passwordHash\":{\"S\": \"${TEST_HASH}\"},
+    \"createdAt\":   {\"S\": \"2026-01-01T00:00:00.000Z\"}
+  }" >/dev/null
+  echo "  - test user created"
+fi
+
 echo "[seed] uploading bundled samples (if present)"
 if [ -d /samples ] && [ "$(ls -A /samples 2>/dev/null | grep -E '\.(webm|ogg|wav|mp3)$' | head -1)" ]; then
   for f in /samples/*.webm /samples/*.ogg /samples/*.wav /samples/*.mp3; do
