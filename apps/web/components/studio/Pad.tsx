@@ -102,7 +102,7 @@ export function Pad({
         className={clsx(
           "flex flex-1 flex-col items-center justify-center gap-1 rounded-md py-3",
           empty
-            ? "text-[color:var(--color-text-dim)]/50"
+            ? "text-[color:var(--color-text-dim)]"
             : state.playing
               ? "bg-[color:var(--color-accent)] text-black"
               : "bg-[color:var(--color-surface-2)] text-[color:var(--color-text)] hover:bg-[color:var(--color-surface)]",

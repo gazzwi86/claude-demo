@@ -54,18 +54,16 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 
 ## apps/api/src/services/s3Service.ts
 
-**Description:** S3 presigned URL service. The API never proxies audio bytes — it issues short-lived signed URLs that the client uses to PUT/GET directly from S3 (LocalStack in dev, real S3 in prod). Controlled by `S3_USE_STUB=1` for tests (returns deterministic stub URLs).
+**Description:** Presigned S3 URL service. The API never proxies audio bytes — it issues short-lived signed URLs that the browser uses to PUT/GET directly against S3 (LocalStack in dev). Lazily instantiates a singleton `S3Client`. When `S3_USE_STUB=1`, returns deterministic stub URLs so tests run without LocalStack.
 
 ### Exports
 
-- **`getPresignedPutUrl(key, mimeType, sizeBytes)`** — returns a PUT URL valid for 15 minutes
-- **`getPresignedGetUrl(key)`** — returns a GET URL valid for 60 minutes
-- **`deleteObject(key)`** — deletes an S3 object by key
+- **`getPresignedPutUrl(s3Key, mimeType, sizeBytes, expiresIn?)`** — validates size (1–50 MB), returns a presigned PUT URL; default expiry 300 s
+- **`getPresignedGetUrl(s3Key, expiresIn?)`** — returns a presigned GET URL; default expiry 120 s
+- **`deleteObject(s3Key)`** — sends `DeleteObjectCommand`; no-ops in stub mode
 
 ### Depends on
 
-- `@aws-sdk/client-s3`
-- `@aws-sdk/s3-request-presigner`
+- `@aws-sdk/client-s3` (S3Client, Put/Get/DeleteObjectCommand)
+- `@aws-sdk/s3-request-presigner` (getSignedUrl)
 - `../config.js`
-
-<!-- stale: apps/api/src/services/s3Service.ts --> <!-- at: 2026-05-08T05:10:24.022833+00:00 -->

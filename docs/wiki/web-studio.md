@@ -18,7 +18,18 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 
 ## apps/web/components/studio/Pad.tsx
 
-**Description:** Single pad cell. Shows loop name when loaded, or muted hint text when empty. Background colour and glow effect communicate state: empty (dark), loaded (dim), playing (lit neon-green), muted (grey). Volume, mute, and solo controls are exposed inline via small buttons. Note: empty-pad hint text must not use `/50` opacity class — contrast must meet WCAG AA.
+**Description:** Single pad cell in the 4×4 grid. Renders as empty (dashed border, "+ load" prompt) or loaded, with colour and glow communicating state — dim for loaded-but-stopped, neon-green for playing. Exposes inline Mute (M) and Solo (S) buttons and a central play/stop toggle. Volume and playback-rate sliders appear on `sm:` breakpoint and above; all controls have `aria-label`.
+
+### Exports
+
+- **`Pad(props)`** — named component; all audio mutations delegate outward via `onMute`, `onSolo`, `onVolume`, `onRate`, `onToggle`; clicking an empty pad fires `onSelect` to open the library drawer
+- **`PadProps`** — props interface exported for use by `PadGrid`
+
+### Depends on
+
+- `clsx`
+- `@/components/ui/Slider`
+- `@/lib/audio/engine` (PadState type)
 
 ---
 
@@ -44,4 +55,3 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 
 **Description:** Animated RMS level meter. Polls a provided `getRms()` callback in a `requestAnimationFrame` loop and renders a single coloured bar proportional to level. Used in the TransportBar (master level) and LoopRecorder (input level).
 
-<!-- stale: apps/web/components/studio/Pad.tsx --> <!-- at: 2026-05-08T05:10:09.804155+00:00 -->

@@ -33,6 +33,9 @@ export async function getPresignedPutUrl(
   if (useStub) {
     return `http://stub.local/${config.s3Bucket}/${s3Key}?op=put&exp=${expiresIn}`;
   }
+  if (sizeBytes < 1 || sizeBytes > 52_428_800) {
+    throw new Error(`sizeBytes must be 1–52428800 (got ${sizeBytes})`);
+  }
   const command = new PutObjectCommand({
     Bucket: config.s3Bucket,
     Key: s3Key,
