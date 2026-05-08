@@ -32,7 +32,7 @@ pnpm exec -F @looper/web playwright test
                         - 6 auth-pages.spec (login/signup/home + offline-error path)
                         - 6 studio.spec (gate -> active -> load sample -> toggle ->
                                          effects rack -> mute -> stop all)
-python3 .claude/tests/hooks_test.py    54/54 OK
+python3 .claude/tests/hooks_test.py    76/76 OK
 bash .claude/tests/test_audit_loop.sh  OK
 ```
 

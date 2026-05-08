@@ -107,7 +107,7 @@ The local repo at `/Users/gareth/Sites/claude-demo/.claude/scripts/hooks.py` is 
 
 ## Edge cases (see plan §"Edge-case matrix")
 
-Non-git, managed policy locks, solo/throwaway, polyglot monorepo, OSS/public, existing config differs, re-run on already-applied repo, custom hooks, `core.hooksPath` collision (Husky), native skills available, anatomy/graphify present, experimental "permissive" repo (`.claude/.profile=permissive`).
+Non-git, managed policy locks, solo/throwaway, polyglot monorepo, OSS/public, existing config differs, re-run on already-applied repo, custom hooks, `core.hooksPath` collision (Husky), native skills available, anatomy present, experimental "permissive" repo (`.claude/.profile=permissive`).
 
 ## Council critique
 

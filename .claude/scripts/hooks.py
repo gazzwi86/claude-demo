@@ -22,12 +22,11 @@ Each module in modules/ owns one logical concern. To add a new hook:
 import sys
 
 from modules import common
-from modules import secrets, graphify, wiki, eslint, stop
+from modules import secrets, wiki, eslint, stop
 from modules import memory, lifecycle, circular_deps, claude_review, python_tooling
 
 PRE_TOOL_USE_CHECKS = {
     "check-no-secrets":   [secrets.check_no_secrets],
-    "graphify-hint":      [graphify.graphify_hint],
     "check-uv-over-pip":  [python_tooling.check_uv_over_pip],
 }
 

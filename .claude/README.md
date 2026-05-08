@@ -17,7 +17,6 @@ team is here to learn.
 ├── scripts/              See scripts/README.md.
 │   ├── hooks.py          Single dispatcher for all hook events.
 │   ├── statusline.sh     Custom statusline shown above the input box.
-│   ├── setup-graphify.sh Installs the graphify knowledge graph (optional).
 │   └── git-hooks/        pre-commit, pre-push wired via core.hooksPath.
 │
 ├── tests/                See tests/README.md.
@@ -81,7 +80,7 @@ team is here to learn.
    │  pipe through scripts/hooks.py:              │
    │                                              │
    │    PreToolUse  → check_no_secrets,           │
-   │                  graphify_hint               │
+   │                  check_uv_over_pip           │
    │    PostToolUse → mark_anatomy_stale,         │
    │                  claude_review (Opus -p),    │
    │                  check_circular_deps (off)   │

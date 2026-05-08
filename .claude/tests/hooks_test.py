@@ -15,7 +15,7 @@ from pathlib import Path
 from unittest import mock
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
-from modules import common, secrets, stop, memory, lifecycle  # noqa: E402
+from modules import common, secrets, stop, memory, lifecycle, python_tooling, wiki  # noqa: E402
 
 
 def write_jsonl(lines: list[dict]) -> str:
@@ -438,6 +438,148 @@ class CheckNoSecretsTests(unittest.TestCase):
             'password: "mypassword123", token: "abc123token456"',
         )
         secrets.check_no_secrets(payload)  # must not raise
+
+
+class CheckUvOverPipTests(unittest.TestCase):
+    """Mirrors .claude/rules/python-tooling.md. P = lower 'PIP' avoids tripping the
+    rule on this very file when self-scanned by editors / linters."""
+
+    P = "PIP".lower()
+
+    def _bash(self, cmd: str) -> dict:
+        return {"tool_name": "Bash", "tool_input": {"command": cmd}}
+
+    def _edit(self, file_path: str, new_string: str) -> dict:
+        return {"tool_name": "Edit", "tool_input": {"file_path": file_path, "new_string": new_string}}
+
+    def _multi(self, file_path: str, new_strings: list) -> dict:
+        return {
+            "tool_name": "MultiEdit",
+            "tool_input": {"file_path": file_path, "edits": [{"new_string": s} for s in new_strings]},
+        }
+
+    def _expect_block(self, payload: dict) -> None:
+        with self.assertRaises(SystemExit) as cm:
+            python_tooling.check_uv_over_pip(payload)
+        self.assertEqual(cm.exception.code, 2)
+
+    def test_bare_pip_install_blocks(self):
+        self._expect_block(self._bash(f"{self.P} install semble"))
+
+    def test_uv_pip_install_allowed(self):
+        python_tooling.check_uv_over_pip(self._bash(f"uv {self.P} install --system semble"))
+
+    def test_uv_pip_install_with_extra_whitespace_allowed(self):
+        python_tooling.check_uv_over_pip(self._bash(f"uv   {self.P} install --system foo"))
+
+    def test_uvx_allowed(self):
+        python_tooling.check_uv_over_pip(self._bash("uvx semble"))
+
+    def test_uv_tool_install_allowed(self):
+        python_tooling.check_uv_over_pip(self._bash("uv tool install semble"))
+
+    def test_python_dash_m_pip_install_blocks(self):
+        self._expect_block(self._bash(f"python3 -m {self.P} install foo"))
+
+    def test_pip_install_inside_quoted_string_allowed(self):
+        python_tooling.check_uv_over_pip(self._bash(f'echo "{self.P} install is forbidden"'))
+
+    def test_pip_install_inside_commit_message_allowed(self):
+        python_tooling.check_uv_over_pip(self._bash(f'git commit -m "chore: forbid {self.P} install"'))
+
+    def test_no_pip_substring_fast_path_allowed(self):
+        python_tooling.check_uv_over_pip(self._bash("echo hello world"))
+
+    def test_break_system_packages_blocks(self):
+        self._expect_block(self._bash(f"uv {self.P} install --break-system-packages foo"))
+
+    def test_edit_file_with_pip_install_blocks(self):
+        self._expect_block(self._edit("/path/x.py", f"run {self.P} install foo"))
+
+    def test_edit_exempt_scripts_path_allowed(self):
+        # The hook's own source legitimately contains the literals it scans for.
+        python_tooling.check_uv_over_pip(
+            self._edit("/x/.claude/scripts/modules/python_tooling.py", f"run {self.P} install foo")
+        )
+
+    def test_edit_exempt_md_in_rules_dir_allowed(self):
+        python_tooling.check_uv_over_pip(
+            self._edit("/x/.claude/rules/python-tooling.md", f"do not run {self.P} install foo")
+        )
+
+    def test_edit_exempt_tests_path_allowed(self):
+        python_tooling.check_uv_over_pip(
+            self._edit("/x/.claude/tests/hooks_test.py", f"assert {self.P} install fails")
+        )
+
+    def test_multiedit_with_pip_install_blocks(self):
+        self._expect_block(self._multi("/path/x.py", [f"run {self.P} install foo"]))
+
+    def test_multiedit_clean_allowed(self):
+        python_tooling.check_uv_over_pip(self._multi("/path/x.py", ["console.log('ok')"]))
+
+    def test_unknown_tool_no_op(self):
+        # Tools the hook doesn't gate on (e.g. Read, Glob) must be silent.
+        python_tooling.check_uv_over_pip({"tool_name": "Read", "tool_input": {}})
+
+
+class WikiTests(unittest.TestCase):
+    """mark_anatomy_stale + check_anatomy_fresh under a temp PROJECT_ROOT."""
+
+    def setUp(self):
+        self.tmp = tempfile.mkdtemp()
+        self._orig_root = common.PROJECT_ROOT
+        common.PROJECT_ROOT = Path(self.tmp)
+        # wiki.py captured PROJECT_ROOT at import; rebind for the test.
+        wiki.PROJECT_ROOT = Path(self.tmp)
+        # Seed apps/web/lib/audio so is_tracked() returns True.
+        (Path(self.tmp) / "apps" / "web" / "lib" / "audio").mkdir(parents=True)
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+        common.PROJECT_ROOT = self._orig_root
+        wiki.PROJECT_ROOT = self._orig_root
+
+    def test_mark_stale_appends_marker(self):
+        wiki_path = Path(self.tmp) / "docs" / "wiki" / "web-audio.md"
+        wiki_path.parent.mkdir(parents=True)
+        wiki_path.write_text("# web-audio\n", encoding="utf-8")
+        wiki.mark_anatomy_stale({
+            "tool_input": {"file_path": str(Path(self.tmp) / "apps/web/lib/audio/padNode.ts")}
+        })
+        self.assertIn("<!-- stale:", wiki_path.read_text(encoding="utf-8"))
+
+    def test_mark_stale_idempotent(self):
+        wiki_path = Path(self.tmp) / "docs" / "wiki" / "web-audio.md"
+        wiki_path.parent.mkdir(parents=True)
+        wiki_path.write_text("# web-audio\n", encoding="utf-8")
+        payload = {"tool_input": {"file_path": str(Path(self.tmp) / "apps/web/lib/audio/padNode.ts")}}
+        wiki.mark_anatomy_stale(payload)
+        wiki.mark_anatomy_stale(payload)
+        body = wiki_path.read_text(encoding="utf-8")
+        self.assertEqual(body.count("<!-- stale:"), 1)
+
+    def test_mark_stale_skips_untracked_path(self):
+        # docs/, infra/, .claude/ etc. are not tracked source areas — no wiki update.
+        (Path(self.tmp) / "README.md").write_text("hi", encoding="utf-8")
+        wiki.mark_anatomy_stale({"tool_input": {"file_path": str(Path(self.tmp) / "README.md")}})
+        self.assertFalse((Path(self.tmp) / "docs" / "wiki").exists())
+
+    def test_check_fresh_empty_dir_passes(self):
+        # No wiki dir → silent pass (returns None, no SystemExit).
+        wiki.check_anatomy_fresh({})  # must not raise
+
+    def test_check_fresh_with_stale_marker_blocks(self):
+        wiki_dir = Path(self.tmp) / "docs" / "wiki"
+        wiki_dir.mkdir(parents=True)
+        (wiki_dir / "web-audio.md").write_text(
+            "# web-audio\n<!-- stale: apps/web/lib/audio/padNode.ts -->\n",
+            encoding="utf-8",
+        )
+        with self.assertRaises(SystemExit) as cm:
+            wiki.check_anatomy_fresh({})
+        self.assertEqual(cm.exception.code, 1)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 ---
 name: cc-audit-tools
-description: Audits code-navigation tooling (jcodemunch MCP, graphify graph.json, semble vector index). Checks registration, version pinning, index freshness, gitignore hygiene, and CLAUDE.md "Tool priority" section. Returns Finding JSON for the cc-audit orchestrator. Use when the user invokes /cc-audit, asks to "audit code-navigation tools", "check jcodemunch / graphify / semble setup", or "review tool freshness". - Orchestrator fan-out for /cc-audit, or a direct request to audit the navigation-tool stack.
+description: Audits code-navigation tooling (jcodemunch MCP). Checks registration, version pinning, index freshness, staleness-hook presence, and CLAUDE.md "Tool priority" section. Returns Finding JSON for the cc-audit orchestrator. Use when the user invokes /cc-audit, asks to "audit code-navigation tools", "check jcodemunch setup", or "review tool freshness". - Orchestrator fan-out for /cc-audit, or a direct request to audit the navigation-tool stack.
 type: subskill
 parent: cc-audit
 ---
@@ -34,27 +34,15 @@ Finding emitted on staleness:
 }
 ```
 
-### T2 — graphify graph.json
+### T2 — Anti-patterns
 
-| Check | Pass criteria | Fix |
-|-------|--------------|-----|
-| graph.json present | `graphify-out/graph.json` exists | `graphify index .` |
-| node count sane | `nodes >= 100` for non-trivial repos | Re-index |
-| Gitignored | `graph.json` and `cache/` in `.gitignore` | Add entries |
-| GRAPH_REPORT.md gitignored | (not committed) | Add to `.gitignore` |
-| SKILL.md uses targeted queries | `.claude/skills/graphify/SKILL.md` mentions `node -e` or `jq` query pattern, NOT "Read GRAPH_REPORT.md" | Rewrite per benchmark v3 fix |
+Emit `warn` if any reappear; fix is "see `.claude/reports/BENCHMARK.md` Part 0":
 
-### T3 — semble (optional, only if C8 enabled)
+- Vector retrieval indices serialised via `pickle` (RCE risk on load).
+- Code-navigation tools that duplicate jcodemunch's symbol/AST lookup at <250k LOC.
+- Per-task reads of monolithic narrative-doc artifacts (e.g. a generated full report).
 
-| Check | Pass criteria | Fix |
-|-------|--------------|-----|
-| Installed via uv | `.venv-bench/bin/python -c 'import semble'` succeeds | `uv venv .venv-bench && uv pip install --python .venv-bench/bin/python semble` |
-| Index built | `graphify-out/semble-index.pkl` exists | rebuild |
-| Pickle gitignored | `*.pkl` in gitignore | add — P5 RCE risk |
-| Pickle not in CI cache | check CI artifacts don't include `.pkl` | exclude — P5 RCE risk |
-| Recommendation present | docs/CLAUDE.md notes semble is for >250k LOC repos | add per F5/P6 |
-
-### T4 — CLAUDE.md "Tool priority" wired
+### T3 — CLAUDE.md "Tool priority" wired
 
 | Check | Pass criteria | Fix |
 |-------|--------------|-----|
@@ -62,7 +50,7 @@ Finding emitted on staleness:
 | Order matches benchmark | C3b (direct fetch) listed before C3 (search) before C0 (Read) | rewrite per COUNCIL.md C2 |
 | Fallback documented | "if symbol_id miss, fall back to search; if file is small, prefer Read" | per P3 simplification |
 
-### T5 — Re-index hook present
+### T4 — Re-index hook present
 
 | Check | Pass criteria | Fix |
 |-------|--------------|-----|
@@ -90,13 +78,13 @@ them as the unified plan-mode diff bundle.
 
 ## Why this skill exists (provenance)
 
-Benchmark v4 (`.claude/reports/benchmark-v4/`) found:
+Benchmark v4 (`.claude/reports/BENCHMARK.md`) found:
 
 - F1: `_freshness: stale_index` is a load-bearing signal, never enforced
 - F3: C3b > C3 because direct-fetch beats search when symbol_id is guessable
-- F5: semble at <100k LOC has wrong granularity
+- F5 + Decision D2: graphify and semble removed; jcodemunch is the production-default
 - C1 (council): re-index hook is the highest-ROI change
-- P5 (security): pickle persistence + unpinned uvx are real risks
+- P5 (security): unpinned uvx is a supply-chain risk
 
 This skill encodes those findings as a deterministic audit step so future repos
 get the lessons applied automatically via `/cc-audit`.

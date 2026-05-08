@@ -12,7 +12,7 @@ invoked.
 | `/anatomy [refresh \| lint] [files...]` | Regenerates the per-area wiki under `docs/wiki/`. `lint` checks for stale markers. |
 | `/check-health` | Boots `apps/api`, polls `/health`, reports the JSON, kills the server. Used as a connectivity smoke. |
 | `/open-pr` | Cleans the working tree, runs the security checker, pushes, opens a PR with `/review` queued. |
-| `/setup [graphify]` | Wires git hooks, chmods scripts, configures the Stop-hook local LLM. With `graphify`: also installs the knowledge graph indexer. |
+| `/setup` | Wires git hooks, chmods scripts, configures the Stop-hook local LLM. |
 
 ## How to add one
 

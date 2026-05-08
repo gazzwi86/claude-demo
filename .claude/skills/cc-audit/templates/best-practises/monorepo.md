@@ -42,4 +42,4 @@ For hooks that need to route by file location (e.g. mark anatomy stale, run pack
 
 ## Native tools
 
-`/anatomy` (LLM-maintained per-area wiki) and `graphify` (knowledge graph for cross-file deps) shine in monorepos. Detect repo size: if >200 files and these aren't installed, recommend.
+`/anatomy` (LLM-maintained per-area wiki) shines in monorepos for unfamiliar areas. Detect repo size: if >200 files and `/anatomy` isn't wired, recommend. graphify and semble were evaluated and removed in the reference repo — see `.claude/reports/BENCHMARK.md` Part 0 before recommending them in another project.

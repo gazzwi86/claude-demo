@@ -14,7 +14,7 @@ def notification(payload: dict) -> None:
 
 
 def check_setup_status(_payload: dict) -> None:
-    """SessionStart — warn about missing setup (git hooks, graphify)."""
+    """SessionStart — warn about missing setup (git hooks)."""
     missing = []
 
     try:
@@ -26,9 +26,6 @@ def check_setup_status(_payload: dict) -> None:
             missing.append("git hooks not wired (run /setup)")
     except (subprocess.TimeoutExpired, OSError):
         pass
-
-    if not (PROJECT_ROOT / "graphify-out" / "graph.json").exists():
-        missing.append("graphify not indexed (run /setup graphify — optional)")
 
     if missing:
         sys.stderr.write("setup status:\n  - " + "\n  - ".join(missing) + "\n")

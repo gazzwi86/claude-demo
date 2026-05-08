@@ -1,5 +1,5 @@
 ---
-description: Wire git hooks, chmod scripts, configure local LLM for the Stop hook, and (optionally) install graphify. Idempotent.
+description: Wire git hooks, chmod scripts, configure local LLM for the Stop hook. Idempotent.
 ---
 
 You are bootstrapping this repo for Claude Code. Run the steps below in order. Each step is idempotent — re-running `/setup` should be a no-op when already configured.
@@ -7,7 +7,6 @@ You are bootstrapping this repo for Claude Code. Run the steps below in order. E
 ## Args
 
 - `$ARGUMENTS` may include:
-  - `graphify` (or `--graphify`) — also run `bash .claude/scripts/setup-graphify.sh`
   - `llm` (or `--llm`) — only do the LLM configuration step (skip git hooks)
   - `skip-llm` (or `--skip-llm`) — skip the LLM configuration step
 
@@ -64,12 +63,10 @@ You are bootstrapping this repo for Claude Code. Run the steps below in order. E
 
    Report each as `✓` or `✗`.
 
-5. **If the user passed `graphify`**, run `bash .claude/scripts/setup-graphify.sh`. Otherwise mention `/setup graphify` is available as a follow-up.
-
-6. **Confirm completion** with a one-line summary: what was wired, which LLM model is configured (if any), whether graphify ran, and one suggested next action (e.g. `npm test` or `/anatomy`).
+5. **Confirm completion** with a one-line summary: what was wired, which LLM model is configured (if any), and one suggested next action (e.g. `npm test` or `/anatomy`).
 
 ## Notes
 
-- This command replaces the old `npm run setup` and `npm run setup:graphify` scripts. Setup itself is Claude-driven, in keeping with the rest of this demo.
+- This command replaces the old `npm run setup` script. Setup itself is Claude-driven, in keeping with the rest of this demo.
 - `npm run anatomy:check` is also gone; for an ad-hoc freshness check, run `python3 .claude/scripts/hooks.py check-anatomy-fresh` directly. The pre-push hook calls it for you.
 - The Stop hook's behaviour and config are documented in `hooks.py` (`def stop`). It silently no-ops when `LLM_BACKEND` is unset, so skipping step 3 is always safe.

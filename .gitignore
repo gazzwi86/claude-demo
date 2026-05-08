@@ -3,10 +3,6 @@ node_modules/
 .env
 .env.local
 .env.*.local
-graphify-out/graph.json
-graphify-out/graph.html
-graphify-out/GRAPH_REPORT.md
-graphify-out/cache/
 
 # Build artefacts
 dist/
@@ -41,5 +37,3 @@ infra/docker/.data/
 *.tfplan
 crash.log
 crash.*.log
-graphify-out/semble-index.pkl
-.venv-bench/

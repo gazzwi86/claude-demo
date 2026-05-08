@@ -19,7 +19,7 @@ Where `<event>` is:
 | Event | When it fires | What this dispatcher does |
 |---|---|---|
 | `pre-tool-use check-no-secrets` | Before every Edit / Write | Greps new content for hardcoded secrets, API keys, and dangerous patterns. Blocks (exit 2) on a hit. |
-| `pre-tool-use graphify-hint` | Before every Glob / Grep | If `graphify-out/graph.json` exists, nudges Claude to consult `GRAPH_REPORT.md` first. |
+| `pre-tool-use check-uv-over-pip` | Before every Edit / Write / Bash | Blocks bare `pip install`, `python -m pip install`, `--break-system-packages`. Allows `uv pip install`, `uvx`, `uv tool install`. See `.claude/rules/python-tooling.md`. |
 | `post-tool-use check-circular-deps` | After every Edit / Write | **Disabled.** Was a CommonJS `require()` walker; the rewrite is TS+ESM. Keep the slot — re-enable with `madge --circular` if needed. |
 | `post-tool-use mark-anatomy-stale` | After every Edit / Write | Looks up the touched file's wiki page via `area_for_path()` and appends a stale-marker comment (`<!-- stale: <file> -->`). |
 | `post-tool-use claude-review` | After every Edit / Write | Spawns `claude -p` with a security-linter prompt over the new content. Async. No-op if `claude` CLI isn't on PATH. |
@@ -41,7 +41,7 @@ module under `modules/`:
 |---|---|
 | `modules/common.py` | Shared utilities: `PROJECT_ROOT`, `area_for_path()`, `block()`, `rel_from_root()`, transcript helpers |
 | `modules/secrets.py` | PreToolUse: secret scanner and dangerous-pattern guard |
-| `modules/graphify.py` | PreToolUse: graphify index nudge |
+| `modules/python_tooling.py` | PreToolUse: enforce uv-only Python tooling (Edit / Write / Bash) |
 | `modules/wiki.py` | PostToolUse: `mark_anatomy_stale`, `check_anatomy_fresh` |
 | `modules/eslint.py` | PostToolUse: ESLint security lint |
 | `modules/stop.py` | Stop: context drift detection (token estimate + local LLM) |
@@ -75,13 +75,6 @@ are intentionally *not* tracked — `len(parts) >= 4` gate. See
 
 Shell script that prints the custom Claude Code status line. Wired via
 `settings.json` `statusLine.command`.
-
-### `setup-graphify.sh`
-
-Installs and runs the [graphify](https://github.com/...) knowledge-graph
-indexer. Invoked by `/setup graphify`. Creates `graphify-out/`. Once
-present, the `pre-tool-use graphify-hint` hook will nudge Claude
-toward it for cross-file lookups.
 
 ### `git-hooks/`
 
