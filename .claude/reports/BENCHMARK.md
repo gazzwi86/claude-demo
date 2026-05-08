@@ -96,7 +96,6 @@ Toolchain shrinks from {jcodemunch, graphify, semble, anatomy} to
 | **Per-area CLAUDE.md** | Free quality-shaping context; auto-loads on Read | Mandatory in any directory with distinct conventions |
 | **`.claude/rules/*.md` with `paths:` globs** | Path-gated, high signal-to-noise | Cross-cutting concerns (testing, security, style) |
 | **anatomy / docs/wiki** | Onboarding for unfamiliar areas | **Read once per session, not per task** — that pattern was the v1 disaster |
-| **Caveman compression (lite/full/ultra)** | Cuts response tokens ~75% | Off for code/commits/security |
 | **`check-uv-over-pip` PreToolUse hook** | Mechanically enforces uv-only Python tooling | 10/10 cases pass |
 | **F1 staleness signal awareness** | `_freshness: stale_index` is load-bearing safety | Hook still to be added (next-cycle work) |
 
@@ -106,6 +105,7 @@ Toolchain shrinks from {jcodemunch, graphify, semble, anatomy} to
 |---|---|
 | **graphify** | Marginal value at small/medium scale; legacy enterprise teams have SourceGraph / GitHub code search already; index scales poorly past ~100k files; targeted-query pattern duplicates jcodemunch's `find_references` + `find_importers` |
 | **semble** | Pickle persistence = RCE risk in any team setting; wrong granularity at <100k LOC (0/5 chunk-line recall, 4/5 tasks blew 5k char cap); chunk boundaries split symbol bodies; even at >250k LOC needs symbol-aware chunking before being viable; build needs `.venv-bench` per repo |
+| **caveman compression plugin** | Removed — fragment style risked technical ambiguity in multi-step instructions; auto-clarity escapes were frequent enough to cancel the token-saving win; descriptions also pushed the skill listing past its budget fraction |
 
 ### Never
 
@@ -128,8 +128,7 @@ Toolchain shrinks from {jcodemunch, graphify, semble, anatomy} to
 | anatomy/wiki | **Generate once, read on demand** |
 | Per-area CLAUDE.md | **Mandatory** — every directory with distinct conventions |
 | Rules with `paths:` globs | **Add for each cross-cutting concern** |
-| Caveman | **On for status/reviews; off for code** |
-| graphify, semble | **Skip** |
+| graphify, semble, caveman | **Skip** |
 
 ### B. Large polyglot monorepo (>250k LOC, 3+ languages)
 
@@ -139,7 +138,6 @@ Toolchain shrinks from {jcodemunch, graphify, semble, anatomy} to
 | anatomy | **Yes** — generate per-area; refresh in CI |
 | CLAUDE.md per-area | **Mandatory** — one per service/app |
 | Sparse-checkout | **Yes** — limits worktree disk explosion |
-| Caveman | **Same as A** |
 | Vector retrieval | **Re-evaluate** with symbol-aware chunking + safer serialisation than pickle. Not semble. |
 
 ### C. Solo prototype (<5k LOC, single language)
@@ -489,7 +487,6 @@ council:
 
 - jcodemunch (production-default) — MCP server, index at `~/.code-index/`
 - anatomy / docs/wiki — onboarding for new contributors; one read per session
-- caveman compression — cross-cutting; works regardless of repo
 - check-uv-over-pip hook — mechanical enforcement of uv-only Python tooling
 - cc-audit-tools sub-skill — still relevant for jcodemunch checks (graphify+semble sections trimmed)
 
