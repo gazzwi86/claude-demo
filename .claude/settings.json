@@ -11,7 +11,19 @@
   },
   "env": {
     "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1",
-    "teammateMode": "auto"
+    "teammateMode": "auto",
+    "CAVEMAN_DEFAULT_MODE": "lite"
+  },
+  "extraKnownMarketplaces": {
+    "caveman": {
+      "source": {
+        "source": "github",
+        "repo": "JuliusBrussee/caveman"
+      }
+    }
+  },
+  "enabledPlugins": {
+    "caveman@caveman": true
   },
   "permissions": {
     "allow": [
@@ -133,10 +145,6 @@
           {
             "type": "command",
             "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/scripts/hooks.py stop"
-          },
-          {
-            "type": "prompt",
-            "prompt": "Review the conversation. Did Claude complete the stated task? If any requested functionality is not implemented, any test is still failing, or any file mentioned in the task was not actually written, respond with a short bullet list of what is missing prefixed with INCOMPLETE:. Otherwise respond with just: task complete."
           }
         ]
       }

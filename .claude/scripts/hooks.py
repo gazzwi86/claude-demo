@@ -40,7 +40,7 @@ POST_TOOL_USE_CHECKS = {
 EVENT_HANDLERS = {
     "notification":         [lifecycle.notification],
     "user-prompt-submit":   [memory.user_prompt_submit],
-    "stop":                 [memory.flush_nudge_on_stop, stop.drift_check],
+    "stop":                 [memory.flush_nudge_on_stop, stop.drift_check, stop.completion_review],
     "subagent-stop":        [lifecycle.subagent_stop],
     "pre-compact":          [lifecycle.pre_compact],
     "session-start":        [memory.inject_memory_index, lifecycle.check_setup_status],

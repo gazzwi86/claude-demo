@@ -1,4 +1,4 @@
-"""Stop event: two-stage context drift detection via local LLM."""
+"""Stop event: completion review (loop-guarded) + two-stage context drift detection."""
 
 import json
 import os
@@ -8,6 +8,29 @@ from pathlib import Path
 from typing import Optional
 
 from modules.common import _sum_text_chars, _last_messages_excerpt
+
+
+REVIEW_PROMPT = (
+    "Review the conversation. Did Claude complete the stated task? "
+    "If any requested functionality is not implemented, any test is still failing, "
+    "or any file mentioned in the task was not actually written, respond with a "
+    "short bullet list of what is missing prefixed with INCOMPLETE:. "
+    "Otherwise respond with just: task complete."
+)
+
+
+def completion_review(payload: dict) -> None:
+    """Inject a completion-review prompt — but only once per user-prompt stack.
+
+    Claude Code sets `stop_hook_active: true` on the payload when the Stop
+    event fires *because* a previous Stop hook told Claude to keep going.
+    Without this guard the prompt re-fires on every assistant turn it
+    triggers, producing an infinite review loop.
+    """
+    if payload.get("stop_hook_active"):
+        return
+    sys.stderr.write(f"[{REVIEW_PROMPT}]\n")
+    sys.exit(2)
 
 
 def drift_check(payload: dict) -> None:
