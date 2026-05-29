@@ -35,7 +35,17 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 
 ## apps/web/components/studio/EffectsRack.tsx
 
-**Description:** Master effects panel. Exposes `Slider` controls for master volume, delay time + feedback + mix, reverb mix, and lowpass filter cutoff + Q. Each slider change calls `engine.setEffects()` with the updated partial. Reads `DEFAULT_EFFECTS` for initial values.
+**Description:** Master effects panel. Renders three columns — Filter (cutoff + resonance/Q), Delay (time + feedback + mix), and Reverb (mix) — each using `Slider`. Calls `onChange` with a partial `EffectsParams` on each slider change; the parent passes current `effects` state and an `onChange` callback that calls `engine.setEffects()`.
+
+### Exports
+
+- **`EffectsRack(props)`** — named component; fully controlled via `effects` + `onChange` props
+- **`EffectsRackProps`** — `effects: EffectsParams`, `onChange: (p: Partial<EffectsParams>) => void`
+
+### Depends on
+
+- `@/components/ui/Slider`
+- `@/lib/audio/effects` (EffectsParams type)
 
 ---
 
@@ -56,4 +66,3 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 **Description:** Animated RMS level meter. Polls a provided `getRms()` callback in a `requestAnimationFrame` loop and renders a single coloured bar proportional to level. Used in the TransportBar (master level) and LoopRecorder (input level).
 
 
-<!-- stale: apps/web/components/studio/EffectsRack.tsx --> <!-- at: 2026-05-08T11:19:39.437839+00:00 -->

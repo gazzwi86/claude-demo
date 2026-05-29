@@ -8,16 +8,23 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 
 **Description:** Every cross-package request/response Zod schema shared by `@looper/web` and `@looper/api`. Single source of truth — schemas are never duplicated or re-defined on either side. All API body validation imports from here.
 
-### Exports (schemas)
+### Exports (primitive schemas)
 
-- **`SignupSchema`** — email (trimmed, lowercased, max 254), password (8–200 chars), displayName (1–60 chars)
+- **`EmailSchema`** — string, trimmed, lowercased, valid email, max 254 chars
+- **`PasswordSchema`** — string, 8–200 chars
+- **`DisplayNameSchema`** — string, trimmed, 1–60 chars
+- **`LoopNameSchema`** — string, trimmed, 1–80 chars
+
+### Exports (composite schemas)
+
+- **`SignupSchema`** — email + password + displayName
 - **`LoginSchema`** — email + password
 - **`PublicUserSchema`** — id, email, displayName, createdAt
-- **`CreateLoopSchema`** — name, durationMs, sampleRate, bpm (nullable), mimeType (enum from ALLOWED_LOOP_MIMES), sizeBytes
+- **`CreateLoopSchema`** — name, durationMs, sampleRate, bpm (nullable/optional), mimeType (enum from ALLOWED_LOOP_MIMES), sizeBytes
 - **`UpdateLoopSchema`** — partial: name, bpm, isPublic
-- **`LoopMetaSchema`** — full loop metadata shape including s3Key, bpm, isPublic
+- **`LoopMetaSchema`** — full loop metadata shape including s3Key, bpm, isPublic, mimeType, sizeBytes, timestamps
 - **`PadConfigSchema`** — loopId, volume (0–1), mute, solo, playbackRate (0.25–4), filterCutoff (20–20000)
-- **`SessionConfigSchema`** — id, ownerId, name, pads[PAD_GRID_SIZE], master effects object
+- **`SessionConfigSchema`** — id, ownerId, name, pads[PAD_GRID_SIZE], master object (volume, delayMs, delayFeedback, delayMix, reverbMix)
 
 ### Exports (inferred types)
 
@@ -67,4 +74,3 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 
 **Description:** 12 Vitest contract tests verifying that each schema accepts valid inputs and rejects invalid ones. Acts as a living spec — if a schema boundary changes, these tests break first.
 
-<!-- stale: packages/shared/src/schemas.ts --> <!-- at: 2026-05-08T11:16:20.067178+00:00 -->

@@ -33,7 +33,7 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 
 - **`GET /loops/public`** — unauthenticated; returns `{ loops: LoopMeta[] }` for all public loops
 - **`GET /loops`** — auth required; lists the authenticated user's loops
-- **`GET /loops/:id`** — auth required; returns one loop (owner only)
+- **`GET /loops/:id`** — auth required; returns loop if viewer is owner or loop is public; delegates to `getLoopForViewer`
 - **`POST /loops`** — auth required; validates CreateLoopSchema; returns `{ loop, uploadUrl }` with 201
 - **`PATCH /loops/:id`** — auth required; validates UpdateLoopSchema; returns updated loop metadata
 - **`DELETE /loops/:id`** — auth required; idempotent delete; returns 204
@@ -46,8 +46,8 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 - `../errors.js` (ValidationError)
 - `../services/loopService.js`
 
-<!-- stale: apps/api/src/routes/CLAUDE.md --> <!-- at: 2026-05-08T05:03:35.965007+00:00 -->
+---
 
+## apps/api/src/routes/CLAUDE.md
 
-
-<!-- stale: apps/api/src/routes/loops.ts --> <!-- at: 2026-05-08T11:18:09.360463+00:00 -->
+**Description:** Convention doc for the routes layer. Specifies schema import rules (all from `@looper/shared`), HTTP status conventions (POST 201, GET 200, PATCH 200, DELETE 204), `AppError` subclass usage, `authGuard` preHandler registration, and the presigned-URL upload/download flow where the API never proxies audio bytes.

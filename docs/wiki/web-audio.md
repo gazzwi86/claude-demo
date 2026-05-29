@@ -4,6 +4,12 @@ _Area: `apps/web/lib/audio/` — Web Audio API engine_
 
 _Last full refresh: 2026-05-08T14:00:00Z_
 
+## apps/web/lib/audio/CLAUDE.md
+
+**Description:** Convention doc for the audio engine. Covers singleton `AudioContext` ownership, why audio handles must live in refs not React state, the `PadNode → EffectsBus` signal chain, `setTargetAtTime` usage for glitch-free parameter changes, and `AudioEngine.destroy()` cleanup contract.
+
+---
+
 ## apps/web/lib/audio/engine.ts
 
 **Description:** Owns the singleton `AudioContext`, master `EffectsBus`, and a `Map<number, PadNode>` keyed by pad index. The React layer wraps this behind `useAudioEngine`; the engine is pure imperative logic with no React dependency and is safe to test outside jsdom.
@@ -13,6 +19,11 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 - **`class AudioEngine`** — top-level audio controller
 - **`interface PadState`** — per-pad metadata: loopId, loopUrl, volume, mute, solo, playbackRate, filterCutoff, loaded, playing
 - **`DEFAULT_PAD: PadState`** — factory default values for a blank pad (volume 0.85, filterCutoff 20 000 Hz, everything else off/null)
+
+### Public fields (AudioEngine)
+
+- **`ctx: AudioContext`** — the singleton AudioContext for the page
+- **`bus: EffectsBus`** — master effects bus; input is the destination for all PadNodes
 
 ### Methods (AudioEngine)
 
@@ -147,11 +158,3 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 
 - `../effects.js`
 
-<!-- stale: apps/web/lib/audio/CLAUDE.md --> <!-- at: 2026-05-08T05:03:13.123466+00:00 -->
-
-
-<!-- stale: apps/web/lib/audio/engine.ts --> <!-- at: 2026-05-08T05:07:39.357122+00:00 -->
-
-<!-- stale: apps/web/lib/audio/padNode.ts --> <!-- at: 2026-05-08T11:12:47.809807+00:00 -->
-
-<!-- stale: apps/web/lib/audio/effects.ts --> <!-- at: 2026-05-08T11:20:01.339202+00:00 -->

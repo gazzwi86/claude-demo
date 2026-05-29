@@ -48,18 +48,28 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 
 ---
 
+## apps/api/src/db/CLAUDE.md
+
+**Description:** Convention doc for the DB layer. Covers the composite key schema for all three tables, GSI access patterns for email and public-loop queries, uniqueness enforcement via `attribute_not_exists` ConditionExpression, and the `DDB_USE_STUB=1` in-process stub pattern for unit tests.
+
+---
+
 ## apps/api/src/db/loops.ts
 
-**Description:** Typed wrapper for the loops DynamoDB table. Key schema: `pk = "USER#<ownerId>"`, `sk = "LOOP#<loopId>"`. GSI `gsi_public` is keyed on `gsi_public_pk = "PUBLIC"` for queries across all public loops regardless of owner.
+**Description:** Typed wrapper for the loops DynamoDB table. Key schema: `pk = "USER#<ownerId>"`, `sk = "LOOP#<loopId>"`. GSI `gsi_public` is keyed on `gsi_public_pk = "PUBLIC#1"` for queries across all public loops regardless of owner. The S3 object key is derived per-loop via `s3KeyFor` as `users/<ownerId>/loops/<loopId>.<ext>`.
 
 ### Exports
 
-- **`interface LoopRow`** — full row shape including pk, sk, gsi_public_pk and all LoopMeta fields
-- **`createLoop(input)`** — generates UUID + s3Key (`loops/<uuid>`), writes loop row
+- **`interface LoopRow`** — full row shape: pk, sk, optional gsi_public_pk, and all LoopMeta fields
+- **`interface NewLoopInput`** — input type for `createLoop`: ownerId, name, durationMs, sampleRate, bpm, mimeType, sizeBytes
+- **`loopKey(ownerId, loopId)`** — returns `{ pk: "USER#<ownerId>", sk: "LOOP#<loopId>" }`
+- **`s3KeyFor(ownerId, loopId, mimeType)`** — derives S3 object key: `users/<ownerId>/loops/<loopId>.<ext>`
+- **`createLoop(input)`** — generates UUID, derives s3Key, writes loop row; isPublic defaults to false
+- **`getLoop(ownerId, loopId)`** — fetches by pk/sk; returns LoopRow or null
 - **`getLoopOrThrow(ownerId, loopId)`** — fetches by pk/sk; throws NotFoundError if absent
-- **`listUserLoops(ownerId)`** — queries by partition key sorted by createdAt desc
-- **`listPublicLoops()`** — queries gsi_public GSI for all loops with gsi_public_pk = "PUBLIC"
-- **`updateLoop(ownerId, loopId, patch)`** — partial update of name, bpm, isPublic; toggles gsi_public_pk based on isPublic
+- **`listUserLoops(ownerId, limit?)`** — queries partition key with `sk` prefix `LOOP#`; sorted desc; default limit 50
+- **`listPublicLoops(limit?)`** — queries gsi_public GSI for `gsi_public_pk = "PUBLIC#1"`; sorted desc; default limit 50
+- **`updateLoop(ownerId, loopId, updates)`** — partial update of name, bpm, isPublic; sets/clears gsi_public_pk based on isPublic
 - **`deleteLoop(ownerId, loopId)`** — deletes the loop row
 - **`_truncateLoops()`** — test helper
 
@@ -68,7 +78,3 @@ _Last full refresh: 2026-05-08T14:00:00Z_
 - `./storage.js`
 - `../config.js`
 - `../errors.js` (NotFoundError)
-
-<!-- stale: apps/api/src/db/CLAUDE.md --> <!-- at: 2026-05-08T05:03:25.297911+00:00 -->
-
-<!-- stale: apps/api/src/db/loops.ts --> <!-- at: 2026-05-08T11:16:38.617069+00:00 -->
