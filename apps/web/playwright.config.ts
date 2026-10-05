@@ -1,10 +1,14 @@
 import { defineConfig, devices } from "@playwright/test";
+import { defineBDDConfig } from "playwright-bdd";
 
 const PORT = 3000;
 const baseURL = `http://localhost:${PORT}`;
 
 export default defineConfig({
-  testDir: "./e2e",
+  testDir: defineBDDConfig({
+    features: "e2e/features/**/*.feature",
+    steps: "e2e/steps/**/*.ts",
+  }),
   timeout: 30_000,
   expect: { timeout: 5_000, toHaveScreenshot: { maxDiffPixelRatio: 0.02 } },
   fullyParallel: true,

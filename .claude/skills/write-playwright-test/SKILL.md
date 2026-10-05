@@ -1,72 +1,48 @@
 ---
 name: write-playwright-test
-description: Guide for writing Playwright E2E or integration tests for apps/web. Invoke when the user says "write E2E test", "add playwright test", "write an integration test for X", or "add a browser test".
+description: Guide for writing Playwright BDD E2E tests for apps/web. Uses playwright-bdd with Gherkin feature files, page objects, and typed fixtures. Invoke when the user says "write E2E test", "add playwright test", "write an integration test for X", "add a feature file", or "add a browser test".
 ---
 
-# Write a Playwright test
+# Write a Playwright BDD test
 
-Follow these steps. For unit/API tests use `/write-vitest-test`. For component tests use `/write-rtl-test`.
+All E2E tests use `playwright-bdd` with Gherkin `.feature` files, Page Object Model
+classes, typed fixtures, and step definition files.
 
-## Step 1 — Identify the page or flow
+For unit/API tests use `/write-vitest-test`. For component tests use `/write-rtl-test`.
 
-Decide what to test: a page navigation, a user action sequence, an API-driven flow. Name the spec after the area or feature.
-
-## Step 2 — Create the spec file
+## File layout
 
 ```
-apps/web/e2e/<area>.spec.ts
+apps/web/e2e/
+├── features/          ← Gherkin feature files    → /write-feature-file
+├── steps/             ← Step definitions          → /write-step-file
+├── pages/             ← Page Object Model classes → /write-page-object
+└── fixtures.ts        ← Typed fixture extensions  → /write-e2e-fixture
 ```
 
-Reference existing specs for patterns:
+## Routing to sub-skills
 
-- `apps/web/e2e/studio.spec.ts` — audio engine state inspection via `window.__looperDebug`
-- `apps/web/e2e/auth-live.spec.ts` — live auth flow with the seeded test user
-- `apps/web/e2e/auth-pages.spec.ts` — page-level behavioural (network stubbed)
+Invoke the matching sub-skill for the artifact you need to create:
 
-## Step 3 — Choose behavioural or live
+| Task | Skill |
+|---|---|
+| New `.feature` file (Gherkin scenarios, tags, Rule/Background blocks) | `/write-feature-file` |
+| Step definitions (`Given`/`When`/`Then` in `steps/*.steps.ts`) | `/write-step-file` |
+| Page Object class (`pages/*.ts`, actions + locators) | `/write-page-object` |
+| New fixture or extending `fixtures.ts` | `/write-e2e-fixture` |
 
-**Behavioural (preferred for most tests):**
+When writing a complete test from scratch, invoke the sub-skills in order:
+1. `/write-feature-file` — define the scenarios
+2. `/write-page-object` — encapsulate the page under test
+3. `/write-e2e-fixture` — register the page object as a fixture
+4. `/write-step-file` — implement the step definitions
 
-- Does not require a running server.
-- Use `page.route()` to stub API calls.
-- No auth setup needed for public pages.
+## Running tests
 
-```ts
-await page.route("/api/loops*", (route) =>
-  route.fulfill({ json: { loops: [] } })
-);
+```bash
+pnpm --filter @looper/web e2e                   # behavioural (stubbed)
+pnpm --filter @looper/web e2e --grep @smoke     # smoke only
+pnpm --filter @looper/web e2e:visual            # visual regression
+pnpm --filter @looper/web e2e:update            # refresh snapshots
+pnpm --filter @looper/web e2e --grep @live      # live (requires localstack)
 ```
-
-**Live (for auth or real DB flows):**
-
-- Requires `pnpm dev` + localstack running.
-- Extend the pattern in `auth-live.spec.ts`.
-- Use the seeded test user credentials from the seed script.
-
-## Step 4 — Inspect audio engine state
-
-For studio interactions, read engine state via the debug bridge:
-
-```ts
-const state = await page.evaluate(() => window.__looperDebug?.getState());
-```
-
-Reference `studio.spec.ts` for the full shape of the debug object.
-
-## Step 5 — Use role-based selectors
-
-Prefer accessible selectors in this order:
-
-1. `page.getByRole("button", { name: /label/i })`
-2. `page.getByLabel(/label/i)`
-3. `page.getByText(/text/i)`
-
-Avoid CSS selectors and `data-testid` unless no accessible alternative exists.
-
-## Checklist before finishing
-
-- [ ] Spec file placed under `apps/web/e2e/`
-- [ ] Behavioural vs live decision made and documented in a comment
-- [ ] Network calls stubbed with `page.route()` for behavioural tests
-- [ ] Role-based selectors used
-- [ ] Audio state inspected via `window.__looperDebug` where needed

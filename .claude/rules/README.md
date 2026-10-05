@@ -45,6 +45,7 @@ and prevents conflicting advice.
 | [`testing-rtl.md`](testing-rtl.md) | `apps/web/**/*.test.tsx`, `apps/web/**/*.spec.tsx` | Vitest + RTL for React component tests. |
 | [`frontend-component.md`](frontend-component.md) | `apps/web/components/**/*.tsx` | Named export, props interface, aria, Tailwind 4 tokens. |
 | [`fastify-route.md`](fastify-route.md) | `apps/api/src/routes/**/*.ts` | Shared schemas, HTTP verbs, AppError, delegate to services. |
+| [`testing-playwright.md`](testing-playwright.md) | `apps/web/e2e/**` | Playwright BDD: feature files, step definitions, page objects, fixtures. |
 
 ## How rules connect to other config
 

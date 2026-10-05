@@ -15,3 +15,4 @@ Global fallback — applies repo-wide unless a more specific rule matches:
 
 - Fastify API tests → `testing-fastify.md` (paths: `apps/api/tests/**/*.test.ts`)
 - React component tests → `testing-rtl.md` (paths: `apps/web/**/*.test.tsx`, `apps/web/**/*.spec.tsx`)
+- Playwright BDD E2E tests → `testing-playwright.md` (paths: `apps/web/e2e/**`)

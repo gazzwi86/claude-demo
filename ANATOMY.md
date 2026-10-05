@@ -46,10 +46,20 @@ apps/
 │   │   ├── api-client.ts
 │   │   └── auth-client.ts
 │   └── e2e/
-│       ├── auth-pages.spec.ts
-│       ├── auth-live.spec.ts
-│       ├── studio.spec.ts
-│       ├── visual-tour.spec.ts
+│       ├── features/
+│       │   ├── auth-pages.feature
+│       │   ├── auth-live.feature
+│       │   ├── studio.feature
+│       │   └── visual-tour.feature
+│       ├── steps/
+│       │   ├── auth.steps.ts
+│       │   ├── studio.steps.ts
+│       │   └── visual.steps.ts
+│       ├── pages/
+│       │   ├── LoginPage.ts
+│       │   ├── SignupPage.ts
+│       │   └── StudioPage.ts
+│       ├── fixtures.ts
 │       └── _screenshots.mjs
 │
 └── api/
@@ -112,7 +122,7 @@ infra/
 | Web hooks | [web-hooks](docs/wiki/web-hooks.md) | 3 files |
 | Web lib (API clients) | [web-lib](docs/wiki/web-lib.md) | 2 files |
 | Web pages | [web-pages](docs/wiki/web-pages.md) | 9 files |
-| Web E2E tests | [web-e2e](docs/wiki/web-e2e.md) | 5 files |
+| Web E2E tests | [web-e2e](docs/wiki/web-e2e.md) | 12 files |
 | API routes | [api-routes](docs/wiki/api-routes.md) | 4 files |
 | API services | [api-services](docs/wiki/api-services.md) | 3 files |
 | API database layer | [api-db](docs/wiki/api-db.md) | 4 files |

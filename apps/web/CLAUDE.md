@@ -12,7 +12,10 @@ Next.js 15 (App Router) + React 19 + Tailwind 4. The studio app.
 - `lib/audio/` — Web Audio engine. Imperative classes (`PadNode`, `EffectsBus`) wrapped by hooks.
 - `lib/api-client.ts` — fetch wrapper that targets `NEXT_PUBLIC_API_BASE_URL`, sends `credentials: "include"` for the auth cookie.
 - `hooks/useAudioEngine.ts` — owns the `AudioContext` and pad map. Singleton-per-page.
-- `e2e/` — Playwright tests (behavioural + visual). Visual specs use `toHaveScreenshot()`.
+- `e2e/features/` — Gherkin `.feature` files (`@behavioural`, `@live`, `@visual`; scenarios tagged `@smoke`, `@regression`, `@a11y`)
+- `e2e/steps/` — Step definitions (`auth.steps.ts`, `studio.steps.ts`, `visual.steps.ts`); each imports `createBdd(test)` from `../fixtures.js`
+- `e2e/pages/` — Page Object Model (`LoginPage`, `SignupPage`, `StudioPage`); actions as methods, locators as `get` properties
+- `e2e/fixtures.ts` — Typed fixture extensions: `loginPage`, `signupPage`, `studioPage`, `serverHit`, `loggedIn`
 
 ## Conventions
 
